@@ -20,133 +20,200 @@
             border-radius: 5px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
-        h1, h2 {
+        h1, h2, h3 {
             text-align: center;
             color: #333;
         }
-        nav {
+        .category-buttons {
             display: flex;
+            flex-wrap: wrap;
             justify-content: center;
+            gap: 10px;
             margin-bottom: 20px;
         }
-        nav a {
-            margin: 0 10px;
-            text-decoration: none;
-            color: #333;
+        .category-button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .services-list {
+            display: none;
+        }
+        .service-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .service-item label {
+            flex-grow: 1;
+            margin-left: 10px;
+        }
+        #selected-services, #total-price {
+            margin-top: 20px;
+            font-weight: bold;
         }
         form {
             display: flex;
             flex-direction: column;
         }
-        label {
-            margin-top: 10px;
-        }
-        input, select {
+        input, button[type="submit"] {
             margin-bottom: 10px;
             padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
         }
-        button {
+        button[type="submit"] {
             background-color: #4CAF50;
             color: white;
-            padding: 10px;
             border: none;
-            border-radius: 4px;
             cursor: pointer;
         }
-        button:hover {
+        button[type="submit"]:hover {
             background-color: #45a049;
-        }
-        .services {
-            margin-bottom: 20px;
-        }
-        .services ul {
-            list-style-type: none;
-            padding: 0;
-        }
-        .services li {
-            margin-bottom: 10px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Ekka-Barber | صالون الحلاقة</h1>
-        <nav>
-            <a href="#home">الرئيسية | Home</a>
-            <a href="#services">الخدمات | Services</a>
-            <a href="#booking">الحجز | Booking</a>
-        </nav>
+        <h2>حجز موعد | Book an Appointment</h2>
         
-        <section id="home">
-            <h2>مرحباً بكم في صالون Ekka-Barber | Welcome to Ekka-Barber Shop</h2>
-            <p>نحن نقدم أفضل خدمات الحلاقة في المدينة. تفضل بزيارتنا اليوم!</p>
-            <p>We offer the best barbering services in town. Come visit us today!</p>
-        </section>
-        
-        <section id="services" class="services">
-            <h2>خدماتنا | Our Services</h2>
-            <ul>
-                <li>قص الشعر / Haircut - 50 SAR</li>
-                <li>حلاقة اللحية / Beard Trim - 30 SAR</li>
-                <li>صبغ الشعر / Hair Coloring - 100 SAR</li>
-                <li>تسريح الشعر / Hair Styling - 40 SAR</li>
-                <li>قص وتصفيف / Cut & Style - 80 SAR</li>
-                <li>علاج الشعر / Hair Treatment - 120 SAR</li>
-            </ul>
-        </section>
-        
-        <section id="booking">
-            <h2>حجز موعد | Book an Appointment</h2>
-            <form id="bookingForm">
-                <label for="name">الاسم / Name:</label>
-                <input type="text" id="name" name="name" required>
-                
-                <label for="phone">رقم الهاتف / Phone Number:</label>
-                <input type="tel" id="phone" name="phone" required>
-                
-                <label for="service">الخدمة / Service:</label>
-                <select id="service" name="service" required>
-                    <option value="">اختر الخدمة / Select a service</option>
-                    <option value="قص الشعر - 50 ريال">قص الشعر / Haircut - 50 SAR</option>
-                    <option value="حلاقة اللحية - 30 ريال">حلاقة اللحية / Beard Trim - 30 SAR</option>
-                    <option value="صبغ الشعر - 100 ريال">صبغ الشعر / Hair Coloring - 100 SAR</option>
-                    <option value="تسريح الشعر - 40 ريال">تسريح الشعر / Hair Styling - 40 SAR</option>
-                    <option value="قص وتصفيف - 80 ريال">قص وتصفيف / Cut & Style - 80 SAR</option>
-                    <option value="علاج الشعر - 120 ريال">علاج الشعر / Hair Treatment - 120 SAR</option>
-                </select>
-                
-                <label for="date">التاريخ / Date:</label>
-                <input type="date" id="date" name="date" required>
-                
-                <label for="time">الوقت / Time:</label>
-                <input type="time" id="time" name="time" required>
-                
-                <button type="submit">إرسال الحجز / Send Booking</button>
-            </form>
-        </section>
+        <div class="category-buttons">
+            <button class="category-button" onclick="showServices('packages')">الباكجات | Packages</button>
+            <button class="category-button" onclick="showServices('hair')">خدمات الشعر | Hair Services</button>
+            <button class="category-button" onclick="showServices('beard')">خدمات اللحية | Beard Services</button>
+            <button class="category-button" onclick="showServices('facial')">خدمات البشرة | Facial Care</button>
+        </div>
+
+        <div id="packages" class="services-list">
+            <h3>الباكجات | Packages</h3>
+            <div class="service-item">
+                <input type="checkbox" id="haircut-beard-trim" onchange="toggleService('haircut-beard-trim', 'Haircut & Beard Trim', 50)">
+                <label for="haircut-beard-trim">Haircut & Beard Trim - قص الشعر وتشذيب اللحية</label>
+                <span>50 SAR</span>
+            </div>
+            <div class="service-item">
+                <input type="checkbox" id="ekka-package" onchange="toggleService('ekka-package', 'EKKA Package', 150)">
+                <label for="ekka-package">EKKA Package - باكج إيكا</label>
+                <span>150 SAR</span>
+            </div>
+            <div class="service-item">
+                <input type="checkbox" id="ekka-extra-package" onchange="toggleService('ekka-extra-package', 'EKKA Extra Package', 250)">
+                <label for="ekka-extra-package">EKKA Extra Package - باكج إيكا الإضافي</label>
+                <span>250 SAR</span>
+            </div>
+            <div class="service-item">
+                <input type="checkbox" id="hair-care" onchange="toggleService('hair-care', 'Hair Care', 105)">
+                <label for="hair-care">Hair Care - العناية بالشعر</label>
+                <span>105 SAR</span>
+            </div>
+            <div class="service-item">
+                <input type="checkbox" id="hair-care-scalp" onchange="toggleService('hair-care-scalp', 'Hair Care + Scalp Deep Cleansing', 175)">
+                <label for="hair-care-scalp">Hair Care + Scalp Deep Cleansing - العناية بالشعر + تنظيف فروة الرأس العميق</label>
+                <span>175 SAR</span>
+            </div>
+        </div>
+
+        <div id="hair" class="services-list">
+            <h3>خدمات الشعر | Hair Services</h3>
+            <div class="service-item">
+                <input type="checkbox" id="haircut-short" onchange="toggleService('haircut-short', 'Hair Cut (Short Hair)', 30)">
+                <label for="haircut-short">Hair Cut (Short Hair) - قص الشعر (شعر قصير)</label>
+                <span>30 SAR</span>
+            </div>
+            <div class="service-item">
+                <input type="checkbox" id="haircut-long" onchange="toggleService('haircut-long', 'Hair Cut (Long Hair)', 40)">
+                <label for="haircut-long">Hair Cut (Long Hair) - قص الشعر (شعر طويل)</label>
+                <span>40 SAR</span>
+            </div>
+            <!-- Add more hair services here -->
+        </div>
+
+        <div id="beard" class="services-list">
+            <h3>خدمات اللحية | Beard Services</h3>
+            <div class="service-item">
+                <input type="checkbox" id="beard-shaving" onchange="toggleService('beard-shaving', 'Beard Shaving Or Trimming', 25)">
+                <label for="beard-shaving">Beard Shaving Or Trimming - حلاقة أو تشذيب اللحية</label>
+                <span>25 SAR</span>
+            </div>
+            <!-- Add more beard services here -->
+        </div>
+
+        <div id="facial" class="services-list">
+            <h3>خدمات البشرة | Facial Care</h3>
+            <div class="service-item">
+                <input type="checkbox" id="classic-face-cleaning" onchange="toggleService('classic-face-cleaning', 'Classic Quick Face Cleaning', 15)">
+                <label for="classic-face-cleaning">Classic Quick Face Cleaning - تنظيف الوجه السريع الكلاسيكي</label>
+                <span>15 SAR</span>
+            </div>
+            <!-- Add more facial care services here -->
+        </div>
+
+        <div id="selected-services">الخدمات المختارة | Selected Services: </div>
+        <div id="total-price">السعر الإجمالي | Total Price: 0 SAR</div>
+
+        <form id="bookingForm">
+            <input type="text" id="name" name="name" placeholder="الاسم | Name" required>
+            <input type="tel" id="phone" name="phone" placeholder="رقم الهاتف | Phone Number" required>
+            <input type="date" id="date" name="date" required>
+            <input type="time" id="time" name="time" required>
+            <button type="submit">إرسال الحجز | Send Booking</button>
+        </form>
     </div>
 
     <script>
+        let selectedServices = [];
+        let totalPrice = 0;
+
+        function showServices(category) {
+            document.querySelectorAll('.services-list').forEach(el => el.style.display = 'none');
+            document.getElementById(category).style.display = 'block';
+        }
+
+        function toggleService(serviceId, serviceName, price) {
+            const index = selectedServices.findIndex(s => s.id === serviceId);
+            if (index > -1) {
+                selectedServices.splice(index, 1);
+                totalPrice -= price;
+            } else {
+                selectedServices.push({id: serviceId, name: serviceName, price: price});
+                totalPrice += price;
+            }
+            updateSelectedServices();
+        }
+
+        function updateSelectedServices() {
+            const selectedServicesElement = document.getElementById('selected-services');
+            selectedServicesElement.innerHTML = 'الخدمات المختارة | Selected Services: ' + 
+                selectedServices.map(s => s.name).join(', ');
+            document.getElementById('total-price').innerText = `السعر الإجمالي | Total Price: ${totalPrice} SAR`;
+        }
+
         document.getElementById('bookingForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
-            var name = document.getElementById('name').value;
-            var phone = document.getElementById('phone').value;
-            var service = document.getElementById('service').value;
-            var date = document.getElementById('date').value;
-            var time = document.getElementById('time').value;
+            const name = document.getElementById('name').value;
+            const phone = document.getElementById('phone').value;
+            const date = document.getElementById('date').value;
+            const time = document.getElementById('time').value;
             
-            var message = "New Booking:\n" +
-                "Name: " + name + "\n" +
-                "Phone: " + phone + "\n" +
-                "Service: " + service + "\n" +
-                "Date: " + date + "\n" +
-                "Time: " + time;
+            const message = `New Booking:
+Name: ${name}
+Phone: ${phone}
+Date: ${date}
+Time: ${time}
+Selected Services: ${selectedServices.map(s => s.name).join(', ')}
+Total Price: ${totalPrice} SAR`;
             
             // Replace '1234567890' with the actual WhatsApp number
-            var whatsappLink = "https://wa.me/966599791440?text=" + encodeURIComponent(message);
+            const whatsappLink = "https://wa.me/966599791440?text=" + encodeURIComponent(message);
             
             window.open(whatsappLink, '_blank');
         });
