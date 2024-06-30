@@ -1,54 +1,155 @@
 <!DOCTYPE html>
-   <html lang="ar" dir="rtl">
-   <head>
-       <meta charset="UTF-8">
-       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-       <title>Ekka-Barber | صالون الحلاقة</title>
-       <style>
-           body {
-               font-family: Arial, sans-serif;
-               line-height: 1.6;
-               margin: 0;
-               padding: 20px;
-               background-color: #f4f4f4;
-           }
-           .container {
-               max-width: 800px;
-               margin: auto;
-               background: white;
-               padding: 20px;
-               border-radius: 5px;
-               box-shadow: 0 0 10px rgba(0,0,0,0.1);
-           }
-           h1 {
-               text-align: center;
-               color: #333;
-           }
-           nav {
-               display: flex;
-               justify-content: center;
-               margin-bottom: 20px;
-           }
-           nav a {
-               margin: 0 10px;
-               text-decoration: none;
-               color: #333;
-           }
-       </style>
-   </head>
-   <body>
-       <div class="container">
-           <h1>Ekka-Barber | صالون الحلاقة</h1>
-           <nav>
-               <a href="index.html">الرئيسية | Home</a>
-               <a href="services.html">الخدمات | Services</a>
-               <a href="booking.html">الحجز | Booking</a>
-           </nav>
-           <main>
-               <h2>مرحباً بكم في صالون Ekka-Barber | Welcome to Ekka-Barber Shop</h2>
-               <p>نحن نقدم أفضل خدمات الحلاقة في المدينة. تفضل بزيارتنا اليوم!</p>
-               <p>We offer the best barbering services in town. Come visit us today!</p>
-           </main>
-       </div>
-   </body>
-   </html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ekka-Barber | صالون الحلاقة</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            text-align: center;
+            color: #333;
+        }
+        nav {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        nav a {
+            margin: 0 10px;
+            text-decoration: none;
+            color: #333;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            margin-top: 10px;
+        }
+        input, select {
+            margin-bottom: 10px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .services {
+            margin-bottom: 20px;
+        }
+        .services ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        .services li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Ekka-Barber | صالون الحلاقة</h1>
+        <nav>
+            <a href="#home">الرئيسية | Home</a>
+            <a href="#services">الخدمات | Services</a>
+            <a href="#booking">الحجز | Booking</a>
+        </nav>
+        
+        <section id="home">
+            <h2>مرحباً بكم في صالون Ekka-Barber | Welcome to Ekka-Barber Shop</h2>
+            <p>نحن نقدم أفضل خدمات الحلاقة في المدينة. تفضل بزيارتنا اليوم!</p>
+            <p>We offer the best barbering services in town. Come visit us today!</p>
+        </section>
+        
+        <section id="services" class="services">
+            <h2>خدماتنا | Our Services</h2>
+            <ul>
+                <li>قص الشعر / Haircut - 50 SAR</li>
+                <li>حلاقة اللحية / Beard Trim - 30 SAR</li>
+                <li>صبغ الشعر / Hair Coloring - 100 SAR</li>
+                <li>تسريح الشعر / Hair Styling - 40 SAR</li>
+                <li>قص وتصفيف / Cut & Style - 80 SAR</li>
+                <li>علاج الشعر / Hair Treatment - 120 SAR</li>
+            </ul>
+        </section>
+        
+        <section id="booking">
+            <h2>حجز موعد | Book an Appointment</h2>
+            <form id="bookingForm">
+                <label for="name">الاسم / Name:</label>
+                <input type="text" id="name" name="name" required>
+                
+                <label for="phone">رقم الهاتف / Phone Number:</label>
+                <input type="tel" id="phone" name="phone" required>
+                
+                <label for="service">الخدمة / Service:</label>
+                <select id="service" name="service" required>
+                    <option value="">اختر الخدمة / Select a service</option>
+                    <option value="قص الشعر - 50 ريال">قص الشعر / Haircut - 50 SAR</option>
+                    <option value="حلاقة اللحية - 30 ريال">حلاقة اللحية / Beard Trim - 30 SAR</option>
+                    <option value="صبغ الشعر - 100 ريال">صبغ الشعر / Hair Coloring - 100 SAR</option>
+                    <option value="تسريح الشعر - 40 ريال">تسريح الشعر / Hair Styling - 40 SAR</option>
+                    <option value="قص وتصفيف - 80 ريال">قص وتصفيف / Cut & Style - 80 SAR</option>
+                    <option value="علاج الشعر - 120 ريال">علاج الشعر / Hair Treatment - 120 SAR</option>
+                </select>
+                
+                <label for="date">التاريخ / Date:</label>
+                <input type="date" id="date" name="date" required>
+                
+                <label for="time">الوقت / Time:</label>
+                <input type="time" id="time" name="time" required>
+                
+                <button type="submit">إرسال الحجز / Send Booking</button>
+            </form>
+        </section>
+    </div>
+
+    <script>
+        document.getElementById('bookingForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            var name = document.getElementById('name').value;
+            var phone = document.getElementById('phone').value;
+            var service = document.getElementById('service').value;
+            var date = document.getElementById('date').value;
+            var time = document.getElementById('time').value;
+            
+            var message = "New Booking:\n" +
+                "Name: " + name + "\n" +
+                "Phone: " + phone + "\n" +
+                "Service: " + service + "\n" +
+                "Date: " + date + "\n" +
+                "Time: " + time;
+            
+            // Replace '1234567890' with the actual WhatsApp number
+            var whatsappLink = "https://wa.me/1234567890?text=" + encodeURIComponent(message);
+            
+            window.open(whatsappLink, '_blank');
+        });
+    </script>
+</body>
+</html>
