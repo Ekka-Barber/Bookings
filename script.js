@@ -200,6 +200,8 @@ function handleFormSubmit(event) {
     bookingData.totalDuration = formatDuration(totalDuration);
     bookingData.totalPrice = totalPrice;
     
+    console.log('Submitting form with data:', bookingData);
+    
     if (validateForm(bookingData)) {
         sendBookingToWhatsApp(bookingData);
     } else {
@@ -208,7 +210,29 @@ function handleFormSubmit(event) {
 }
 
 function validateForm(bookingData) {
-    return bookingData.name && bookingData.phone && bookingData.barber && bookingData.time && bookingData.services.length > 0;
+    console.log('Validating form data:', bookingData);
+    if (!bookingData.name) {
+        console.log('Name is missing');
+        return false;
+    }
+    if (!bookingData.phone) {
+        console.log('Phone is missing');
+        return false;
+    }
+    if (!bookingData.barber) {
+        console.log('Barber is not selected');
+        return false;
+    }
+    if (!bookingData.time) {
+        console.log('Time is not selected');
+        return false;
+    }
+    if (bookingData.services.length === 0) {
+        console.log('No services selected');
+        return false;
+    }
+    console.log('Form validation passed');
+    return true;
 }
 
 function sendBookingToWhatsApp(bookingData) {
