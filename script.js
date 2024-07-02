@@ -59,22 +59,35 @@ let totalPrice = 0;
 document.addEventListener('DOMContentLoaded', () => {
     const languageToggle = document.getElementById('languageToggle');
     const categoriesContainer = document.getElementById('categories');
-    const barberSelect = document.getElementById('barber');
-    const timeSelect = document.getElementById('time');
+    const barberContainer = document.getElementById('barbers');
     const form = document.getElementById('bookingForm');
 
     languageToggle.addEventListener('change', toggleLanguage);
     initializeCategories(categoriesContainer);
-    initializeBarbers(barberSelect);
-    updateTimeSlots(barberSelect.value, timeSelect);
-    barberSelect.addEventListener('change', () => updateTimeSlots(barberSelect.value, timeSelect));
+    initializeBarbers(barberContainer);
     form.addEventListener('submit', handleFormSubmit);
     updateSummary();
+    updateProgress(0);
 });
 
 function toggleLanguage() {
     currentLanguage = currentLanguage === 'ar' ? 'en' : 'ar';
     updateLanguage();
+}
+
+function initializeDateTimePicker(barber) {
+    const workingHours = employeeWorkingHours[barber];
+    flatpickr("#datetime", {
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+        minTime: workingHours[0],
+        maxTime: workingHours[1],
+        locale: currentLanguage === 'ar' ? 'ar' : 'en',
+        onChange: function(selectedDates, dateStr, instance) {
+            // Handle date/time selection
+            updateProgress(4);
+        }
+    });
 }
 
 function updateLanguage() {
