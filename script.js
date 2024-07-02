@@ -155,16 +155,6 @@ function populateServices(category) {
     });
 }
 
-function populateServices(category) {
-    const servicesContainer = document.getElementById('services');
-    servicesContainer.innerHTML = '';
-    categories[category].forEach(service => {
-        const serviceButton = createButton(`${service.name}<br>(${service.duration} - SAR ${service.price})`, 'service-button');
-        serviceButton.addEventListener('click', () => toggleService(serviceButton, service.name));
-        servicesContainer.appendChild(serviceButton);
-    });
-}
-
 function toggleService(button, serviceName) {
     button.classList.toggle('selected');
     const category = Object.keys(categories).find(cat => categories[cat].some(service => service.name === serviceName));
@@ -215,32 +205,6 @@ function handleFormSubmit(event) {
     bookingData.totalPrice = totalPrice;
     
     sendBookingToWhatsApp(bookingData);
-}
-
-function validateForm(bookingData) {
-    console.log('Validating form data:', bookingData);
-    if (!bookingData.name) {
-        console.log('Name is missing');
-        return false;
-    }
-    if (!bookingData.phone) {
-        console.log('Phone is missing');
-        return false;
-    }
-    if (!bookingData.barber) {
-        console.log('Barber is not selected');
-        return false;
-    }
-    if (!bookingData.time) {
-        console.log('Time is not selected');
-        return false;
-    }
-    if (bookingData.services.length === 0) {
-        console.log('No services selected');
-        return false;
-    }
-    console.log('Form validation passed');
-    return true;
 }
 
 function sendBookingToWhatsApp(bookingData) {
