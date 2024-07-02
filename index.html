@@ -6,6 +6,8 @@
     <title>إكّــه - حجز موعد | Ekkah - Book Your Appointment</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 </head>
 <body>
     <div class="language-switcher">
@@ -40,16 +42,16 @@
                 </div>
             </div>
             <div class="step">
-                <label for="barber" id="barber-label">اختر الحلاق:</label>
-                <select id="barber" required></select>
+                <h2 id="barber-label">اختر الحلاق:</h2>
+                <div id="barbers" class="button-grid"></div>
             </div>
             <div class="step">
-                <label for="time" id="time-label">اختر الوقت:</label>
+                <label for="datetime" id="datetime-label">اختر التاريخ والوقت:</label>
                 <select id="time" required></select>
             </div>
             <div class="step">
                 <label for="name" id="name-label">الاسم:</label>
-                <input type="text" id="name" required>
+                <input type="text" id="datetime" required>
             </div>
             <div class="step">
                 <label for="phone" id="phone-label">رقم الهاتف:</label>
