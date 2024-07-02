@@ -1,368 +1,63 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ekka-Barber | صالون الحلاقة</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            margin: 0;
-            padding: 20px;
-            background-color: #f4f4f4;
-        }
-        .container {
-            max-width: 800px;
-            margin: auto;
-            background: white;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        h1, h2, h3 {
-            text-align: center;
-            color: #333;
-        }
-        .category-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .category-button {
-            padding: 10px 20px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        .category-button:hover {
-            background-color: #45a049;
-        }
-        .services-list {
-            display: none;
-        }
-        .service-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            transition: background-color 0.3s;
-        }
-        .service-item.selected {
-            background-color: #e0f7fa;
-        }
-        .service-item label {
-            flex-grow: 1;
-            margin-left: 10px;
-        }
-        #selected-services, #total-price {
-            margin-top: 20px;
-            font-weight: bold;
-        }
-        form {
-            display: flex;
-            flex-direction: column;
-        }
-        input, button[type="submit"] {
-            margin-bottom: 10px;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        button[type="submit"] {
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        button[type="submit"]:hover {
-            background-color: #45a049;
-        }
-    </style>
+    <title>إكّــه - حجز موعد | Ekkah - Book Your Appointment</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Ekka-Barber | صالون الحلاقة</h1>
-        <h2>حجز موعد | Book an Appointment</h2>
-        
-        <div class="category-buttons">
-    <button class="category-button" onclick="showServices('packages-i-باكجات')">الباكجات | Packages</button>
-    <button class="category-button" onclick="showServices('hair-services-l-خدمات-الشعر')">خدمات الشعر | Hair Services</button>
-    <button class="category-button" onclick="showServices('beard-services-l-خدمات-اللحية')">خدمات اللحية | Beard Services</button>
-    <button class="category-button" onclick="showServices('facial-care-services-i-خدمات-البشرة')">خدمات البشرة | Facial Care</button>
-</div>
-
-        <div id="packages-i-باكجات" class="services-list">
-    <h3>Packages I باكجات | باكجات</h3>
-    <div class="service-item">
-        <input type="checkbox" id="13063193.0" onchange="toggleService('13063193.0', 'Haircut & Beard Trim I حلاقة الشعر والدقن', 50)">
-        <label for="13063193.0">Haircut & Beard Trim I حلاقة الشعر والدقن</label>
-        <span>50 SAR</span>
+    <div class="language-switcher">
+        <label class="switch">
+            <input type="checkbox" id="languageToggle">
+            <span class="slider">
+                <span class="option ar">AR</span>
+                <span class="option en">EN</span>
+            </span>
+        </label>
     </div>
-    <div class="service-item">
-        <input type="checkbox" id="12068705.0" onchange="toggleService('12068705.0', 'EKKA Package - باقة إكّــه', 150)">
-        <label for="12068705.0">EKKA Package - باقة إكّــه</label>
-        <span>150 SAR</span>
+    <div class="logo-container">
+        <img src="C:\Users\alazi\OneDrive\سطح المكتب\booking-page\logo.png" alt="Ekkah Barbershop Logo" class="logo">
     </div>
-    <div class="service-item">
-        <input type="checkbox" id="nan" onchange="toggleService('nan', 'EKKA Extra Package - باقة إكّــه اكسترا', 250)">
-        <label for="nan">EKKA Extra Package - باقة إكّــه اكسترا</label>
-        <span>250 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="nan" onchange="toggleService('nan', 'Hair Care | باقة العناية بالشعر', 105)">
-        <label for="nan">Hair Care | باقة العناية بالشعر</label>
-        <span>105 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="nan" onchange="toggleService('nan', 'Hair Care + Scalp Deep Cleansing | باقة العناية بالشعر + تنظيف فروة الرأس', 175)">
-        <label for="nan">Hair Care + Scalp Deep Cleansing | باقة العناية بالشعر + تنظيف فروة الرأس</label>
-        <span>175 SAR</span>
-    </div>
-</div>
-<div id="hair-services-l-خدمات-الشعر" class="services-list">
-    <h3>Hair Services l خدمات الشعر | الشعر</h3>
-    <div class="service-item">
-        <input type="checkbox" id="12058240.0" onchange="toggleService('12058240.0', 'Hair Cut I حلاقة الشعر - مقص وتدريج | Styling & Fading', 30)">
-        <label for="12058240.0">Hair Cut I حلاقة الشعر - مقص وتدريج | Styling & Fading</label>
-        <span>30 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12058240.0" onchange="toggleService('12058240.0', 'Hair Cut I حلاقة الشعر - شعر طويل || Long Hair', 40)">
-        <label for="12058240.0">Hair Cut I حلاقة الشعر - شعر طويل || Long Hair</label>
-        <span>40 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12057935.0" onchange="toggleService('12057935.0', 'Hair Dye l صبغة شعر - صبغة بيقون', 40)">
-        <label for="12057935.0">Hair Dye l صبغة شعر - صبغة بيقون</label>
-        <span>40 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12057935.0" onchange="toggleService('12057935.0', 'Hair Dye l صبغة شعر - صبغة كيون الهولندية', 60)">
-        <label for="12057935.0">Hair Dye l صبغة شعر - صبغة كيون الهولندية</label>
-        <span>60 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12058238.0" onchange="toggleService('12058238.0', 'Hair Wash I غسيل الشعر', 10)">
-        <label for="12058238.0">Hair Wash I غسيل الشعر</label>
-        <span>10 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12075401.0" onchange="toggleService('12075401.0', 'Hair Styling | استشوار وتصفيف الشعر', 15)">
-        <label for="12075401.0">Hair Styling | استشوار وتصفيف الشعر</label>
-        <span>15 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12058237.0" onchange="toggleService('12058237.0', 'Hair Oil Bath I حمام زيت الشعر', 50)">
-        <label for="12058237.0">Hair Oil Bath I حمام زيت الشعر</label>
-        <span>50 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="14777274.0" onchange="toggleService('14777274.0', 'Hair Coloring (Highlights) || صبغة ميش', 350)">
-        <label for="14777274.0">Hair Coloring (Highlights) || صبغة ميش</label>
-        <span>350 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12057944.0" onchange="toggleService('12057944.0', 'Hair Keratin I حمام كيراتين لعالج للشعر - Short Hair Iشعر قصير', 100)">
-        <label for="12057944.0">Hair Keratin I حمام كيراتين لعالج للشعر - Short Hair Iشعر قصير</label>
-        <span>100 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12057944.0" onchange="toggleService('12057944.0', 'Hair Keratin I حمام كيراتين لعالج للشعر - Long Hair I شعر طويل', 120)">
-        <label for="12057944.0">Hair Keratin I حمام كيراتين لعالج للشعر - Long Hair I شعر طويل</label>
-        <span>120 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="13083753.0" onchange="toggleService('13083753.0', 'Hair protein || بروتين للشعر - شعر قصير || Short Hair', 300)">
-        <label for="13083753.0">Hair protein || بروتين للشعر - شعر قصير || Short Hair</label>
-        <span>300 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="13083753.0" onchange="toggleService('13083753.0', 'Hair protein || بروتين للشعر - شعر طويل || Long Hair', 350)">
-        <label for="13083753.0">Hair protein || بروتين للشعر - شعر طويل || Long Hair</label>
-        <span>350 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12571668.0" onchange="toggleService('12571668.0', 'Scalp Deep Cleansing | تنظيف فروة الرأس العميق', 70)">
-        <label for="12571668.0">Scalp Deep Cleansing | تنظيف فروة الرأس العميق</label>
-        <span>70 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12058233.0" onchange="toggleService('12058233.0', 'Hair Dye (no supplies needed) I تطبيق صبغة الشعر', 25)">
-        <label for="12058233.0">Hair Dye (no supplies needed) I تطبيق صبغة الشعر</label>
-        <span>25 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12473228.0" onchange="toggleService('12473228.0', 'Haircut (Girls) | قص شعر - بنات أطفال - شعر قصير', 50)">
-        <label for="12473228.0">Haircut (Girls) | قص شعر - بنات أطفال - شعر قصير</label>
-        <span>50 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12473228.0" onchange="toggleService('12473228.0', 'Haircut (Girls) | قص شعر - بنات أطفال - شعر طويل', 80)">
-        <label for="12473228.0">Haircut (Girls) | قص شعر - بنات أطفال - شعر طويل</label>
-        <span>80 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12483659.0" onchange="toggleService('12483659.0', 'Hair Dryer (Girls) | استشوار وتصفيف الشعر - بنات اطفال', 50)">
-        <label for="12483659.0">Hair Dryer (Girls) | استشوار وتصفيف الشعر - بنات اطفال</label>
-        <span>50 SAR</span>
-    </div>
-</div>
-<div id="beard-services-l-خدمات-اللحية" class="services-list">
-    <h3>Beard Services l خدمات اللحية | اللحية</h3>
-    <div class="service-item">
-        <input type="checkbox" id="12057984.0" onchange="toggleService('12057984.0', 'Beard Shaving Or Trimming I حلاقة الدقن', 25)">
-        <label for="12057984.0">Beard Shaving Or Trimming I حلاقة الدقن</label>
-        <span>25 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12058220.0" onchange="toggleService('12058220.0', 'Beard Dye I صبغة الدقن - السكسوكة', 25)">
-        <label for="12058220.0">Beard Dye I صبغة الدقن - السكسوكة</label>
-        <span>25 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12058220.0" onchange="toggleService('12058220.0', 'Beard Dye I صبغة الدقن - اللحية كاملة', 30)">
-        <label for="12058220.0">Beard Dye I صبغة الدقن - اللحية كاملة</label>
-        <span>30 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12177496.0" onchange="toggleService('12177496.0', 'Moustache Dye I صبغة الشنب', 10)">
-        <label for="12177496.0">Moustache Dye I صبغة الشنب</label>
-        <span>10 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12107077.0" onchange="toggleService('12107077.0', 'Hair Dye (No Supplies Needed) I تطبيق صبغة الدقن', 15)">
-        <label for="12107077.0">Hair Dye (No Supplies Needed) I تطبيق صبغة الدقن</label>
-        <span>15 SAR</span>
-    </div>
-</div>
-<div id="facial-care-services-i-خدمات-البشرة" class="services-list">
-    <h3>Facial Care Services I خدمات البشرة | البشرة</h3>
-    <div class="service-item">
-        <input type="checkbox" id="12058218.0" onchange="toggleService('12058218.0', 'Classic Quick Face Cleaning I صنفرة وجه سريعة كلاسيك', 15)">
-        <label for="12058218.0">Classic Quick Face Cleaning I صنفرة وجه سريعة كلاسيك</label>
-        <span>15 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="15457269.0" onchange="toggleService('15457269.0', 'Premium Quick Face Cleaning  |  صنفرة وجه سريعة بريميوم', 25)">
-        <label for="15457269.0">Premium Quick Face Cleaning  |  صنفرة وجه سريعة بريميوم</label>
-        <span>25 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12058214.0" onchange="toggleService('12058214.0', 'Deep Skin Cleansing I تنظيف عميق للبشرة بالبخار', 50)">
-        <label for="12058214.0">Deep Skin Cleansing I تنظيف عميق للبشرة بالبخار</label>
-        <span>50 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12148873.0" onchange="toggleService('12148873.0', 'Face Mask | ماسك للوجه', 15)">
-        <label for="12148873.0">Face Mask | ماسك للوجه</label>
-        <span>15 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12058203.0" onchange="toggleService('12058203.0', 'Nose Cleaning Strips I لزقة الأنف', 5)">
-        <label for="12058203.0">Nose Cleaning Strips I لزقة الأنف</label>
-        <span>5 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12058219.0" onchange="toggleService('12058219.0', 'Face Wax I شمع لإزالة شعر الوجه - الأنف | Nose', 10)">
-        <label for="12058219.0">Face Wax I شمع لإزالة شعر الوجه - الأنف | Nose</label>
-        <span>10 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12058219.0" onchange="toggleService('12058219.0', 'Face Wax I شمع لإزالة شعر الوجه - الأذنين | Ears', 15)">
-        <label for="12058219.0">Face Wax I شمع لإزالة شعر الوجه - الأذنين | Ears</label>
-        <span>15 SAR</span>
-    </div>
-    <div class="service-item">
-        <input type="checkbox" id="12058219.0" onchange="toggleService('12058219.0', 'Face Wax I شمع لإزالة شعر الوجه - شمع كامل | Full Waxing', 30)">
-        <label for="12058219.0">Face Wax I شمع لإزالة شعر الوجه - شمع كامل | Full Waxing</label>
-        <span>30 SAR</span>
-    </div>
-</div>
-
-
-        <div id="selected-services">الخدمات المختارة | Selected Services: </div>
-        <div id="total-price">السعر الإجمالي | Total Price: 0 SAR</div>
-
+    <div class="booking-container">
+        <h1 id="main-title">احجز موعدك</h1>
         <form id="bookingForm">
-            <input type="text" id="name" name="name" placeholder="الاسم | Name" required>
-            <input type="tel" id="phone" name="phone" placeholder="رقم الهاتف | Phone Number" required pattern="\d{10}">
-            <input type="date" id="date" name="date" required>
-            <input type="time" id="time" name="time" required>
-            <button type="submit">إرسال الحجز | Send Booking</button>
+            <div class="step">
+                <h2 id="category-label">اختر الفئة:</h2>
+                <div id="categories" class="button-grid"></div>
+            </div>
+            <div class="step">
+                <h2 id="service-label">اختر الخدمة:</h2>
+                <div id="services" class="button-grid"></div>
+            </div>
+            <div class="step">
+                <h2 id="summary-label">ملخص الحجز:</h2>
+                <div id="booking-summary" class="summary-box">
+                    <p id="selected-services">الخدمات المختارة: <span>-</span></p>
+                    <p id="total-duration">المدة الإجمالية: <span>0 دقيقة</span></p>
+                    <p id="total-price">السعر الإجمالي: <span>0 ريال</span></p>
+                </div>
+            </div>
+            <div class="step">
+                <label for="barber" id="barber-label">اختر الحلاق:</label>
+                <select id="barber" required></select>
+            </div>
+            <div class="step">
+                <label for="time" id="time-label">اختر الوقت:</label>
+                <select id="time" required></select>
+            </div>
+            <div class="step">
+                <label for="name" id="name-label">الاسم:</label>
+                <input type="text" id="name" required>
+            </div>
+            <div class="step">
+                <label for="phone" id="phone-label">رقم الهاتف:</label>
+                <input type="tel" id="phone" required>
+            </div>
+            <button type="submit" id="submit-button">احجز الآن</button>
         </form>
     </div>
-
-    <script>
-        let selectedServices = [];
-        let totalPrice = 0;
-
-        function showServices(category) {
-    document.querySelectorAll('.services-list').forEach(el => el.style.display = 'none');
-    const categoryElement = document.getElementById(category);
-    if (categoryElement) {
-        categoryElement.style.display = 'block';
-    } else {
-        console.error('Category not found:', category);
-    }
-}
-
-        function toggleService(serviceId, serviceName, price) {
-            const serviceItem = document.getElementById(serviceId).parentElement;
-            const index = selectedServices.findIndex(s => s.id === serviceId);
-            if (index > -1) {
-                selectedServices.splice(index, 1);
-                totalPrice -= price;
-                serviceItem.classList.remove('selected');
-            } else {
-                selectedServices.push({id: serviceId, name: serviceName, price: price});
-                totalPrice += price;
-                serviceItem.classList.add('selected');
-            }
-            updateSelectedServices();
-        }
-
-        function updateSelectedServices() {
-            const selectedServicesElement = document.getElementById('selected-services');
-            selectedServicesElement.innerHTML = 'الخدمات المختارة | Selected Services: ' + 
-                selectedServices.map(s => s.name).join(', ');
-            document.getElementById('total-price').innerText = `السعر الإجمالي | Total Price: ${totalPrice} SAR`;
-        }
-
-        document.getElementById('bookingForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const name = document.getElementById('name').value;
-            const phone = document.getElementById('phone').value;
-            const date = document.getElementById('date').value;
-            const time = document.getElementById('time').value;
-            
-            const message = `New Booking:
-Name: ${name}
-Phone: ${phone}
-Date: ${date}
-Time: ${time}
-Selected Services: ${selectedServices.map(s => s.name).join(', ')}
-Total Price: ${totalPrice} SAR`;
-            
-            // Replace with the actual WhatsApp number
-            const whatsappLink = "https://wa.me/966599791440?text=" + encodeURIComponent(message);
-            
-            window.open(whatsappLink, '_blank');
-        });
-	// Show the first category by default
-document.addEventListener('DOMContentLoaded', function() {
-    showServices('packages-i-باكجات');
-});
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
