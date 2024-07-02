@@ -180,7 +180,7 @@ select, input {
 }
 
 #submit-button:hover {
-    background-color: var(--hover-color);
+    background-color: var (--hover-color);
     transform: translateY(-2px);
 }
 
