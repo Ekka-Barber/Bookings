@@ -100,7 +100,7 @@ function updateLanguage() {
         'total-duration': { ar: 'المدة الإجمالية:', en: 'Total Duration:' },
         'total-price': { ar: 'السعر الإجمالي:', en: 'Total Price:' },
         'barber-label': { ar: 'اختر الحلاق:', en: 'Choose Barber:' },
-        'time-label': { ar: 'اختر الوقت:', en: 'Choose Time:' },
+        'datetime-label': { ar: 'اختر التاريخ والوقت:', en: 'Choose Date and Time:' },
         'name-label': { ar: 'الاسم:', en: 'Name:' },
         'phone-label': { ar: 'رقم الهاتف:', en: 'Phone Number:' },
         'submit-button': { ar: 'احجز الآن', en: 'Book Now' }
@@ -193,24 +193,10 @@ function initializeBarbers(barberContainer) {
             e.preventDefault();
             document.querySelectorAll('.barber-button').forEach(btn => btn.classList.remove('selected'));
             button.classList.add('selected');
-            updateTimeSlots(barber, document.getElementById('time'));
+            initializeDateTimePicker(barber);
         });
         barberContainer.appendChild(button);
     });
-}
-
-function updateTimeSlots(selectedBarber, timeSelect) {
-    const [startTime, endTime] = employeeWorkingHours[selectedBarber].map(time => parseInt(time.split(":")[0]));
-    timeSelect.innerHTML = '';
-    for (let hour = startTime; hour < endTime; hour++) {
-        for (let minute of ["00", "15", "30", "45"]) {
-            const timeSlot = `${hour.toString().padStart(2, '0')}:${minute}`;
-            const option = document.createElement('option');
-            option.value = timeSlot;
-            option.textContent = timeSlot;
-            timeSelect.appendChild(option);
-        }
-    }
 }
 
 function handleFormSubmit(event) {
@@ -226,7 +212,7 @@ function handleFormSubmit(event) {
 
 function sendBookingToWhatsApp(bookingData) {
     const message = `
-=========
+========= 
 ${currentLanguage === 'ar' ? 'الاسم' : 'Name'}: ${bookingData.name || ''}
 ${currentLanguage === 'ar' ? 'رقم الهاتف' : 'Phone Number'}: ${bookingData.phone || ''}
 ${currentLanguage === 'ar' ? 'الخدمات' : 'Services'}: 
@@ -234,7 +220,7 @@ ${bookingData.services.map(service => `* ${service}`).join('\n')}
 ${currentLanguage === 'ar' ? 'المدة الإجمالية' : 'Total Duration'}: ${bookingData.totalDuration}
 ${currentLanguage === 'ar' ? 'السعر الإجمالي' : 'Total Price'}: ${bookingData.totalPrice} SAR
 ${currentLanguage === 'ar' ? 'الحلاق' : 'Barber'}: ${bookingData.barber || ''}
-${currentLanguage === 'ar' ? 'الوقت' : 'Time'}: ${bookingData.time || ''}
+${currentLanguage === 'ar' ? 'التاريخ والوقت' : 'Date and Time'}: ${bookingData.datetime || ''}
 =========
     `;
     window.open(`https://wa.me/966599791440?text=${encodeURIComponent(message)}`, '_blank');
@@ -282,4 +268,3 @@ function updateSummary() {
     totalDurationElement.innerHTML = `${durationLabel}<span>${formatDuration(totalDuration)}</span>`;
     totalPriceElement.innerHTML = `${priceLabel}<span>${totalPrice} ${currentLanguage === 'ar' ? 'ريال' : 'SAR'}</span>`;
 }
-
