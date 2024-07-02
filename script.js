@@ -173,12 +173,16 @@ function toggleService(button, serviceName) {
     updateSummary();
 }
 
-function initializeBarbers(barberSelect) {
+function initializeBarbers(barberContainer) {
     Object.keys(employeeWorkingHours).forEach(barber => {
-        const option = document.createElement('option');
-        option.value = barber;
-        option.textContent = barber;
-        barberSelect.appendChild(option);
+        const button = createButton(barber, 'barber-button');
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.querySelectorAll('.barber-button').forEach(btn => btn.classList.remove('selected'));
+            button.classList.add('selected');
+            updateTimeSlots(barber, document.getElementById('time'));
+        });
+        barberContainer.appendChild(button);
     });
 }
 
@@ -210,14 +214,15 @@ function handleFormSubmit(event) {
 function sendBookingToWhatsApp(bookingData) {
     const message = `
 =========
-${currentLanguage === 'ar' ? 'الاسم' : 'Name'}: ${bookingData.name}
-${currentLanguage === 'ar' ? 'رقم الهاتف' : 'Phone Number'}: ${bookingData.phone}
+${currentLanguage === 'ar' ? 'الاسم' : 'Name'}: ${bookingData.name || ''}
+${currentLanguage === 'ar' ? 'رقم الهاتف' : 'Phone Number'}: ${bookingData.phone || ''}
 ${currentLanguage === 'ar' ? 'الخدمات' : 'Services'}: 
-${bookingData.services.map(service => `- ${service}`).join('\n')}
+${bookingData.services.map(service => `* ${service}`).join('\n')}
 ${currentLanguage === 'ar' ? 'المدة الإجمالية' : 'Total Duration'}: ${bookingData.totalDuration}
 ${currentLanguage === 'ar' ? 'السعر الإجمالي' : 'Total Price'}: ${bookingData.totalPrice} SAR
-${currentLanguage === 'ar' ? 'الحلاق' : 'Barber'}: ${bookingData.barber}
-${currentLanguage === 'ar' ? 'الوقت' : 'Time'}: ${bookingData.time}
+${currentLanguage === 'ar' ? 'الحلاق' : 'Barber'}: ${bookingData.barber || ''}
+${currentLanguage === 'ar' ? 'الوقت' : 'Time'}: ${bookingData.time || ''}
+=========
     `;
     window.open(`https://wa.me/966599791440?text=${encodeURIComponent(message)}`, '_blank');
 }
