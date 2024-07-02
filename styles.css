@@ -108,6 +108,7 @@ input:checked + .slider:before {
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     border-radius: 10px;
     border: 2px solid var(--border-color);
+    text-align: center;
 }
 
 h1, h2 {
@@ -117,20 +118,22 @@ h1, h2 {
 
 .step {
     margin-bottom: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 /* Button grid styles */
 .button-grid {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center; /* Center align items horizontally */
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 15px;
     margin-bottom: 20px;
 }
 
 /* Button styles */
 button, .category-button, .service-button, .barber-button {
-    min-width: 200px; /* Set a minimum width for buttons */
+    width: 100%;
     padding: 12px;
     background-color: var(--primary-color);
     color: white;
@@ -164,6 +167,7 @@ select, input {
     font-size: 16px;
     background-color: white;
     color: var(--text-color);
+    max-width: 400px; /* Ensures the input fields are centered */
 }
 
 #submit-button {
@@ -172,9 +176,7 @@ select, input {
     padding: 15px;
     margin-top: 20px;
     transition: background-color 0.3s, transform 0.1s;
-    display: block;
-    width: 200px; /* Set a fixed width */
-    margin: 20px auto; /* Center horizontally */
+    max-width: 400px; /* Ensures the submit button is centered */
 }
 
 #submit-button:hover {
@@ -189,6 +191,7 @@ select, input {
     border-radius: 6px;
     padding: 20px;
     margin-top: 10px;
+    max-width: 400px; /* Ensures the summary box is centered */
 }
 
 .summary-box p {
