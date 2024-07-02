@@ -204,12 +204,15 @@ function initializeBarbers(barberContainer) {
 function handleFormSubmit(event) {
     event.preventDefault();
     const formData = new FormData(event.target);
-    const bookingData = Object.fromEntries(formData.entries());
-    bookingData.services = Array.from(selectedServices);
-    bookingData.totalDuration = formatDuration(totalDuration);
-    bookingData.totalPrice = totalPrice;
-    bookingData.barber = selectedBarber; // Add the selected barber
-    bookingData.datetime = document.getElementById('datetime').value; // Add the selected date and time
+    const bookingData = {
+        name: document.getElementById('name').value,
+        phone: document.getElementById('phone').value,
+        services: Array.from(selectedServices),
+        totalDuration: formatDuration(totalDuration),
+        totalPrice: totalPrice,
+        barber: selectedBarber,
+        datetime: document.getElementById('datetime').value
+    };
 
     sendBookingToWhatsApp(bookingData);
 }
