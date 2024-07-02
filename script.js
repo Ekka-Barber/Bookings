@@ -7,40 +7,40 @@ const categories = {
         { name: "باقة العناية بالشعر + تنظيف فروة الرأس", duration: "1h 15m", price: 175 }
     ],
     "Beard Services l خدمات اللحية": [
-        { name: "حلاقة الدقن", duration: "30m", price: 50 },
-        { name: "صبغة الدقن - السكسوكة", duration: "20m", price: 40 },
-        { name: "صبغة الدقن - اللحية كاملة", duration: "30m", price: 60 },
-        { name: "صبغة الشنب", duration: "15m", price: 20 },
-        { name: "تطبيق صبغة الدقن", duration: "15m", price: 25 }
+        { name: "حلاقة الدقن", duration: "25m", price: 25 },
+        { name: "صبغة الدقن - السكسوكة", duration: "15m", price: 25 },
+        { name: "صبغة الدقن - اللحية كاملة", duration: "30m", price: 30 },
+        { name: "صبغة الشنب", duration: "10m", price: 10 },
+        { name: "تطبيق صبغة الدقن", duration: "15m", price: 15 }
     ],
     "Facial Care Services I خدمات البشرة": [
-        { name: "صنفرة وجه سريعة كلاسيك", duration: "20m", price: 35 },
-        { name: "صنفرة وجه سريعة بريميوم", duration: "30m", price: 50 },
-        { name: "تنظيف عميق للبشرة بالبخار", duration: "1h", price: 100 },
-        { name: "ماسك للوجه", duration: "15m", price: 25 },
-        { name: "لزقة الأنف", duration: "10m", price: 15 },
-        { name: "شمع لإزالة شعر الوجه - الأنف", duration: "10m", price: 20 },
-        { name: "شمع لإزالة شعر الوجه - الأذنين", duration: "10m", price: 20 },
-        { name: "شمع لإزالة شعر الوجه - شمع كامل", duration: "30m", price: 50 }
+        { name: "صنفرة وجه سريعة كلاسيك", duration: "5m", price: 15 },
+        { name: "صنفرة وجه سريعة بريميوم", duration: "15m", price: 25 },
+        { name: "تنظيف عميق للبشرة بالبخار", duration: "25m", price: 50 },
+        { name: "ماسك للوجه", duration: "10m", price: 15 },
+        { name: "لزقة الأنف", duration: "5m", price: 5 },
+        { name: "شمع لإزالة شعر الوجه - الأنف", duration: "5m", price: 10 },
+        { name: "شمع لإزالة شعر الوجه - الأذنين", duration: "10m", price: 15 },
+        { name: "شمع لإزالة شعر الوجه - شمع كامل", duration: "15m", price: 30 }
     ],
     "Hair Services l خدمات الشعر": [
-        { name: "حلاقة الشعر - مقص وتدريج", duration: "45m", price: 75 },
-        { name: "حلاقة الشعر - شعر طويل", duration: "1h", price: 100 },
-        { name: "صبغة شعر - صبغة بيقون", duration: "1h", price: 150 },
-        { name: "صبغة شعر - صبغة كيون الهولندية", duration: "1h 15m", price: 200 },
-        { name: "غسيل الشعر", duration: "15m", price: 25 },
-        { name: "استشوار وتصفيف الشعر", duration: "30m", price: 50 },
-        { name: "حمام زيت الشعر", duration: "45m", price: 100 },
-        { name: "صبغة ميش", duration: "1h 30m", price: 250 },
-        { name: "حمام كيراتين لعلاج للشعر - شعر قصير", duration: "2h", price: 300 },
-        { name: "حمام كيراتين لعلاج للشعر - شعر طويل", duration: "3h", price: 500 },
-        { name: "بروتين للشعر - شعر قصير", duration: "2h", price: 350 },
-        { name: "بروتين للشعر - شعر طويل", duration: "3h", price: 550 },
-        { name: "تنظيف فروة الرأس العميق", duration: "45m", price: 150 },
-        { name: "تطبيق صبغة الشعر", duration: "1h", price: 120 },
-        { name: "قص شعر - بنات أطفال - شعر قصير", duration: "30m", price: 50 },
-        { name: "قص شعر - بنات أطفال - شعر طويل", duration: "45m", price: 70 },
-        { name: "استشوار وتصفيف الشعر - بنات اطفال", duration: "30m", price: 50 }
+        { name: "حلاقة الشعر - مقص وتدريج", duration: "30m", price: 30 },
+        { name: "حلاقة الشعر - شعر طويل", duration: "45m", price: 40 },
+        { name: "صبغة شعر - صبغة بيقون", duration: "15m", price: 40 },
+        { name: "صبغة شعر - صبغة كيون الهولندية", duration: "15m", price: 60 },
+        { name: "غسيل الشعر", duration: "5m", price: 10 },
+        { name: "استشوار وتصفيف الشعر", duration: "5m", price: 15 },
+        { name: "حمام زيت الشعر", duration: "10m", price: 50 },
+        { name: "صبغة ميش", duration: "1h", price: 350 },
+        { name: "حمام كيراتين لعلاج للشعر - شعر قصير", duration: "30m", price: 100 },
+        { name: "حمام كيراتين لعلاج للشعر - شعر طويل", duration: "30m", price: 120 },
+        { name: "بروتين للشعر - شعر قصير", duration: "2h", price: 300 },
+        { name: "بروتين للشعر - شعر طويل", duration: "2h 30m", price: 350 },
+        { name: "تنظيف فروة الرأس العميق", duration: "25m", price: 70 },
+        { name: "تطبيق صبغة الشعر", duration: "25m", price: 25 },
+        { name: "قص شعر - بنات أطفال - شعر قصير", duration: "40m", price: 50 },
+        { name: "قص شعر - بنات أطفال - شعر طويل", duration: "50m", price: 80 },
+        { name: "استشوار وتصفيف الشعر - بنات أطفال", duration: "35m", price: 50 }
     ]
 };
 
