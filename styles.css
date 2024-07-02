@@ -1,3 +1,4 @@
+/* Variables */
 :root {
     --primary-color: #d4af37; /* Gold color from the logo */
     --secondary-color: #3c3c3c; /* Dark gray from the logo text */
@@ -7,6 +8,7 @@
     --hover-color: #b8960c; /* Darker gold for hover effects */
 }
 
+/* General styles */
 body {
     font-family: 'Tajawal', Arial, sans-serif;
     background-color: var(--background-color);
@@ -16,6 +18,7 @@ body {
     direction: rtl;
 }
 
+/* Language switcher styles */
 .language-switcher {
     position: fixed;
     top: 20px;
@@ -85,6 +88,7 @@ input:checked + .slider:before {
     right: 25%;
 }
 
+/* Logo styles */
 .logo-container {
     text-align: center;
     margin: 20px 0;
@@ -95,6 +99,7 @@ input:checked + .slider:before {
     height: auto;
 }
 
+/* Booking container styles */
 .booking-container {
     max-width: 800px;
     margin: 50px auto;
@@ -114,6 +119,7 @@ h1, h2 {
     margin-bottom: 30px;
 }
 
+/* Button grid styles */
 .button-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -121,7 +127,8 @@ h1, h2 {
     margin-bottom: 20px;
 }
 
-button, .category-button, .service-button {
+/* Button styles */
+button, .category-button, .service-button, .barber-button {
     width: 100%;
     padding: 12px;
     background-color: var(--primary-color);
@@ -135,15 +142,18 @@ button, .category-button, .service-button {
     text-align: center;
 }
 
-button:hover, .category-button:hover, .service-button:hover {
+button:hover, .category-button:hover, .service-button:hover, .barber-button:hover {
     background-color: var(--hover-color);
     transform: translateY(-2px);
 }
 
-.service-button.selected {
+/* Selected button styles */
+.category-button.selected, .service-button.selected, .barber-button.selected {
     background-color: var(--secondary-color);
+    color: #fff; /* Example text color */
 }
 
+/* Form input styles */
 select, input {
     width: 100%;
     padding: 12px;
@@ -168,6 +178,7 @@ select, input {
     transform: translateY(-2px);
 }
 
+/* Summary box styles */
 .summary-box {
     background-color: #f0f0f0;
     border: 1px solid var(--secondary-color);
@@ -186,6 +197,7 @@ select, input {
     color: var(--primary-color);
 }
 
+/* Responsive styles */
 @media (max-width: 600px) {
     .booking-container {
         padding: 20px;
