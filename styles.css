@@ -121,15 +121,16 @@ h1, h2 {
 
 /* Button grid styles */
 .button-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center; /* Center align items horizontally */
     gap: 15px;
     margin-bottom: 20px;
 }
 
 /* Button styles */
 button, .category-button, .service-button, .barber-button {
-    width: 100%;
+    min-width: 200px; /* Set a minimum width for buttons */
     padding: 12px;
     background-color: var(--primary-color);
     color: white;
@@ -171,6 +172,9 @@ select, input {
     padding: 15px;
     margin-top: 20px;
     transition: background-color 0.3s, transform 0.1s;
+    display: block;
+    width: 200px; /* Set a fixed width */
+    margin: 20px auto; /* Center horizontally */
 }
 
 #submit-button:hover {
@@ -195,6 +199,23 @@ select, input {
 .summary-box span {
     font-weight: bold;
     color: var(--primary-color);
+}
+
+/* Footer styles */
+.footer {
+    text-align: center;
+    padding: 20px;
+    background-color: var(--secondary-color);
+    color: white;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+}
+
+.footer p {
+    margin: 0;
+    font-size: 14px;
 }
 
 /* Responsive styles */
