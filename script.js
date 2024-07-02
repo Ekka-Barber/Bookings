@@ -55,6 +55,7 @@ const selectedServices = new Set();
 let currentLanguage = 'ar';
 let totalDuration = 0;
 let totalPrice = 0;
+let selectedBarber = ''; // Added to store the selected barber
 
 document.addEventListener('DOMContentLoaded', () => {
     const languageToggle = document.getElementById('languageToggle');
@@ -193,6 +194,7 @@ function initializeBarbers(barberContainer) {
             e.preventDefault();
             document.querySelectorAll('.barber-button').forEach(btn => btn.classList.remove('selected'));
             button.classList.add('selected');
+            selectedBarber = barber; // Store the selected barber
             initializeDateTimePicker(barber);
         });
         barberContainer.appendChild(button);
@@ -206,7 +208,9 @@ function handleFormSubmit(event) {
     bookingData.services = Array.from(selectedServices);
     bookingData.totalDuration = formatDuration(totalDuration);
     bookingData.totalPrice = totalPrice;
-    
+    bookingData.barber = selectedBarber; // Add the selected barber
+    bookingData.datetime = document.getElementById('datetime').value; // Add the selected date and time
+
     sendBookingToWhatsApp(bookingData);
 }
 
