@@ -201,23 +201,6 @@ select, input {
     color: var(--primary-color);
 }
 
-/* Footer styles */
-.footer {
-    text-align: center;
-    padding: 20px;
-    background-color: var(--secondary-color);
-    color: white;
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
-}
-
-.footer p {
-    margin: 0;
-    font-size: 14px;
-}
-
 /* Responsive styles */
 @media (max-width: 600px) {
     .booking-container {
