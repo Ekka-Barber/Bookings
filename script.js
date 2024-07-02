@@ -87,6 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const categoriesContainer = document.getElementById('categories');
     const barberContainer = document.getElementById('barbers');
     const form = document.getElementById('bookingForm');
+    const datetimeInput = document.getElementById('datetime');
 
     languageToggle.addEventListener('change', toggleLanguage);
     initializeCategories(categoriesContainer);
@@ -94,7 +95,44 @@ document.addEventListener('DOMContentLoaded', () => {
     form.addEventListener('submit', handleFormSubmit);
     updateSummary();
     updateProgress(0);
+
+    // Initialize Flatpickr
+    flatpickr(datetimeInput, {
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+        locale: 'ar',  // Set the initial locale to Arabic
+        onChange: function(selectedDates, dateStr, instance) {
+            // Handle date/time selection
+            updateProgress(4);
+        }
+    });
 });
+
+function toggleLanguage() {
+    currentLanguage = currentLanguage === 'ar' ? 'en' : 'ar';
+    updateLanguage();
+    // Update Flatpickr locale on language toggle
+    flatpickr("#datetime", {
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+        locale: currentLanguage === 'ar' ? 'ar' : 'en'
+    });
+}
+
+function initializeDateTimePicker(barber) {
+    const workingHours = employeeWorkingHours[barber];
+    flatpickr("#datetime", {
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+        minTime: workingHours[0],
+        maxTime: workingHours[1],
+        locale: currentLanguage === 'ar' ? 'ar' : 'en',
+        onChange: function(selectedDates, dateStr, instance) {
+            // Handle date/time selection
+            updateProgress(4);
+        }
+    });
+}
 
 function toggleLanguage() {
     currentLanguage = currentLanguage === 'ar' ? 'en' : 'ar';
