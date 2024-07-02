@@ -132,12 +132,26 @@ function updateServicesLanguage() {
 function initializeCategories(categoriesContainer) {
     Object.keys(categories).forEach(category => {
         const button = createButton(category, 'category-button');
-        button.addEventListener('click', () => {
+        button.addEventListener('click', (e) => {
+            e.preventDefault(); // Prevent form submission
             document.querySelectorAll('.category-button').forEach(btn => btn.classList.remove('selected'));
             button.classList.add('selected');
             populateServices(category);
         });
         categoriesContainer.appendChild(button);
+    });
+}
+
+function populateServices(category) {
+    const servicesContainer = document.getElementById('services');
+    servicesContainer.innerHTML = '';
+    categories[category].forEach(service => {
+        const serviceButton = createButton(`${service.name}<br>(${service.duration} - SAR ${service.price})`, 'service-button');
+        serviceButton.addEventListener('click', (e) => {
+            e.preventDefault(); // Prevent form submission
+            toggleService(serviceButton, service.name);
+        });
+        servicesContainer.appendChild(serviceButton);
     });
 }
 
@@ -200,13 +214,7 @@ function handleFormSubmit(event) {
     bookingData.totalDuration = formatDuration(totalDuration);
     bookingData.totalPrice = totalPrice;
     
-    console.log('Submitting form with data:', bookingData);
-    
-    if (validateForm(bookingData)) {
-        sendBookingToWhatsApp(bookingData);
-    } else {
-        alert(currentLanguage === 'ar' ? 'يرجى ملء جميع الحقول المطلوبة واختيار خدمة واحدة على الأقل.' : 'Please fill in all required fields and select at least one service.');
-    }
+    sendBookingToWhatsApp(bookingData);
 }
 
 function validateForm(bookingData) {
