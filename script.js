@@ -70,7 +70,7 @@ const employeeWorkingHours = {
 
 const barbers = {
     "Abdulkareem": { en: "Abdulkareem", ar: "عبدالكريم" },
-    "Hadi": { en: "Hadi (Pub)", ar: "هادي" },
+    "Hadi": { en: "Hadi", ar: "هادي" },
     "Khalid": { en: "Khalid", ar: "خالد" },
     "Tariq": { en: "Tariq", ar: "طارق" },
     "Mahmoud": { en: "Mahmoud", ar: "محمود" }
@@ -110,32 +110,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function toggleLanguage() {
     currentLanguage = currentLanguage === 'ar' ? 'en' : 'ar';
-    updateLanguage();
-    // Update Flatpickr locale on language toggle
-    flatpickr("#datetime", {
-        enableTime: true,
-        dateFormat: "Y-m-d H:i",
-        locale: currentLanguage === 'ar' ? 'ar' : 'en'
-    });
-}
-
-function initializeDateTimePicker(barber) {
-    const workingHours = employeeWorkingHours[barber];
-    flatpickr("#datetime", {
-        enableTime: true,
-        dateFormat: "Y-m-d H:i",
-        minTime: workingHours[0],
-        maxTime: workingHours[1],
-        locale: currentLanguage === 'ar' ? 'ar' : 'en',
-        onChange: function(selectedDates, dateStr, instance) {
-            // Handle date/time selection
-            updateProgress(4);
-        }
-    });
-}
-
-function toggleLanguage() {
-    currentLanguage = currentLanguage === 'ar' ? 'en' : 'ar';
     document.documentElement.lang = currentLanguage; // Dynamically change lang attribute
     updateLanguage();
     // Re-initialize categories when language changes
@@ -147,6 +121,13 @@ function toggleLanguage() {
     const barberContainer = document.getElementById('barbers');
     barberContainer.innerHTML = '';
     initializeBarbers(barberContainer);
+
+    // Update Flatpickr locale on language toggle
+    flatpickr("#datetime", {
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+        locale: currentLanguage === 'ar' ? 'ar' : 'en'
+    });
 }
 
 function initializeDateTimePicker(barber) {
