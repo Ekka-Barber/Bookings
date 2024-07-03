@@ -1,11 +1,12 @@
 /* Variables */
 :root {
-    --primary-color: #d4af37; /* Gold color from the logo */
-    --secondary-color: #3c3c3c; /* Dark gray from the logo text */
-    --background-color: #ffffff; /* White background for contrast */
-    --text-color: #3c3c3c; /* Dark gray for text */
-    --border-color: #d4af37; /* Gold for borders */
-    --hover-color: #b8960c; /* Darker gold for hover effects */
+    --primary-color: #d4af37;
+    --secondary-color: #3c3c3c;
+    --background-color: #ffffff;
+    --text-color: #3c3c3c;
+    --border-color: #d4af37;
+    --hover-color: #b8960c;
+    --transition-speed: 0.3s;
 }
 
 /* General styles */
@@ -15,10 +16,21 @@ body {
     color: var(--text-color);
     margin: 0;
     padding: 20px;
-    direction: rtl;
+    transition: background-color var(--transition-speed);
 }
 
-/* Language switcher styles */
+/* RTL and LTR support */
+body[dir="rtl"] {
+    direction: rtl;
+    text-align: right;
+}
+
+body[dir="ltr"] {
+    direction: ltr;
+    text-align: left;
+}
+
+/* Enhanced Language switcher styles */
 .language-switcher {
     position: fixed;
     top: 20px;
@@ -26,11 +38,19 @@ body {
     z-index: 1000;
 }
 
+body[dir="ltr"] .language-switcher {
+    right: auto;
+    left: 20px;
+}
+
 .switch {
     position: relative;
     display: inline-block;
     width: 60px;
     height: 34px;
+    overflow: hidden;
+    border-radius: 34px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
 }
 
 .switch input {
@@ -61,6 +81,7 @@ body {
     background-color: white;
     transition: .4s;
     border-radius: 50%;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 
 input:checked + .slider {
@@ -78,6 +99,7 @@ input:checked + .slider:before {
     top: 50%;
     font-size: 10px;
     font-weight: bold;
+    transition: opacity 0.3s;
 }
 
 .ar {
@@ -88,32 +110,53 @@ input:checked + .slider:before {
     right: 25%;
 }
 
-/* Logo styles */
+/* Enhanced Logo styles */
 .logo-container {
     text-align: center;
     margin: 20px 0;
+    transition: transform var(--transition-speed);
+}
+
+.logo-container:hover {
+    transform: scale(1.05);
 }
 
 .logo {
     max-width: 300px;
     height: auto;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+    display: inline-block;
 }
 
-/* Booking container styles */
+/* Enhanced Booking container styles */
 .booking-container {
     max-width: 800px;
     margin: 50px auto;
     padding: 30px;
     background-color: #f8f8f8;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    border-radius: 10px;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    border-radius: 15px;
     border: 2px solid var(--border-color);
     text-align: center;
+    transition: box-shadow var(--transition-speed), transform var(--transition-speed);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.booking-container:hover {
+    box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+    transform: translateY(-5px);
 }
 
 h1, h2 {
     color: var(--secondary-color);
     text-align: center;
+    transition: color var(--transition-speed);
+}
+
+h1:hover, h2:hover {
+    color: var(--primary-color);
 }
 
 .step {
@@ -121,18 +164,28 @@ h1, h2 {
     display: flex;
     flex-direction: column;
     align-items: center;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeIn 0.5s forwards;
 }
 
-/* Button grid styles */
+@keyframes fadeIn {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Enhanced Button grid styles */
 .button-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 15px;
-    justify-content: center; /* Center the grid items */
     margin-bottom: 20px;
+    width: 100%;
 }
 
-/* Button styles */
+/* Enhanced Button styles */
 button, .category-button, .service-button, .barber-button {
     width: 100%;
     padding: 12px;
@@ -141,63 +194,139 @@ button, .category-button, .service-button, .barber-button {
     border: none;
     border-radius: 6px;
     cursor: pointer;
-    transition: background-color 0.3s, transform 0.1s;
+    transition: background-color var(--transition-speed), transform var(--transition-speed), box-shadow var(--transition-speed);
     font-size: 14px;
     font-weight: bold;
     text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+button:before, .category-button:before, .service-button:before, .barber-button:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        120deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent
+    );
+    transition: all 0.6s;
+}
+
+button:hover:before, .category-button:hover:before, .service-button:hover:before, .barber-button:hover:before {
+    left: 100%;
 }
 
 button:hover, .category-button:hover, .service-button:hover, .barber-button:hover {
     background-color: var(--hover-color);
     transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
 
-/* Selected button styles */
+/* Enhanced Selected button styles */
 .category-button.selected, .service-button.selected, .barber-button.selected {
     background-color: var(--secondary-color);
-    color: #fff; /* Example text color */
+    color: #fff;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
 }
 
-/* Form input styles */
+/* Form styles */
+form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.form-group {
+    width: 100%;
+    margin-bottom: 15px;
+}
+
+/* Enhanced Form input styles */
 select, input {
     width: 100%;
     padding: 12px;
     margin-top: 8px;
-    border: 1px solid var(--border-color);
+    border: 2px solid var(--border-color);
     border-radius: 6px;
     font-size: 16px;
     background-color: white;
     color: var(--text-color);
-    max-width: 400px; /* Ensures the input fields are centered */
+    transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
+    box-sizing: border-box;
+}
+
+select:focus, input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
+}
+
+/* Label styles */
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+body[dir="rtl"] label {
+    text-align: right;
+}
+
+body[dir="ltr"] label {
+    text-align: left;
 }
 
 #submit-button {
     background-color: var(--primary-color);
+    color: white;
     font-size: 18px;
     padding: 15px;
     margin-top: 20px;
-    transition: background-color 0.3s, transform 0.1s;
-    max-width: 400px; /* Ensures the submit button is centered */
+    transition: background-color var(--transition-speed), transform var(--transition-speed), box-shadow var(--transition-speed);
+    width: 100%;
+    max-width: 400px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
 }
 
 #submit-button:hover {
     background-color: var(--hover-color);
     transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
 }
 
-/* Summary box styles */
+/* Enhanced Summary box styles */
 .summary-box {
     background-color: #f0f0f0;
     border: 1px solid var(--secondary-color);
     border-radius: 6px;
     padding: 20px;
     margin-top: 10px;
-    max-width: 400px; /* Ensures the summary box is centered */
+    width: 100%;
+    max-width: 400px;
+    transition: box-shadow var(--transition-speed), transform var(--transition-speed);
+    box-sizing: border-box;
+}
+
+.summary-box:hover {
+    box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
 }
 
 .summary-box p {
     margin: 5px 0;
     font-size: 16px;
+    transition: color var(--transition-speed);
 }
 
 .summary-box span {
@@ -217,5 +346,32 @@ select, input {
     
     .logo {
         max-width: 200px;
+    }
+}
+
+/* Dark mode styles */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --background-color: #2c2c2c;
+        --text-color: #ffffff;
+        --secondary-color: #d4af37;
+    }
+
+    .booking-container {
+        background-color: #3c3c3c;
+    }
+
+    .summary-box {
+        background-color: #4c4c4c;
+    }
+
+    select, input {
+        background-color: #3c3c3c;
+        color: #ffffff;
+        border-color: #5c5c5c;
+    }
+
+    select:focus, input:focus {
+        border-color: var(--primary-color);
     }
 }
