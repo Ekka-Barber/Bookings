@@ -1,59 +1,58 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>إكّــه - حجز موعد | Ekkah - Book Your Appointment</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 </head>
 <body>
     <div class="language-switcher">
         <label class="switch">
-            <input type="checkbox" id="languageToggle" aria-label="Language Toggle">
+            <input type="checkbox" id="languageToggle">
             <span class="slider">
                 <span class="option ar">AR</span>
                 <span class="option en">EN</span>
             </span>
         </label>
     </div>
+
     <div class="logo-container">
-        <img src="logo.png" alt="Ekkah Barbershop Logo" class="logo">
+        <img src="C:\Users\alazi\OneDrive\سطح المكتب\booking-page\logo.png" alt="Ekkah Barbershop Logo" class="logo">
     </div>
+
     <div class="booking-container">
         <h1 id="main-title">احجز موعدك</h1>
+
+        <h2 id="category-label">اختر الفئة:</h2>
+        <div class="button-grid categories"></div>
+
+        <h2 id="service-label">اختر الخدمة:</h2>
+        <div class="button-grid services"></div>
+
+        <div id="booking-summary" class="summary-box">
+            <h2 id="summary-title">ملخص الحجز:</h2>
+            <p id="selected-services">الخدمات المختارة: <span>-</span></p>
+            <p id="total-duration">المدة الإجمالية: <span>0 دقيقة</span></p>
+            <p id="total-price">السعر الإجمالي: <span>0 ريال</span></p>
+        </div>
+
+        <h2 id="barber-label">اختر الحلاق:</h2>
+        <div class="button-grid barbers"></div>
+
         <form id="bookingForm">
-            <div class="step">
-                <h2 id="category-label">اختر الفئة:</h2>
-                <div id="categories" class="button-grid"></div>
-            </div>
-            <div class="step">
-                <h2 id="service-label">اختر الخدمة:</h2>
-                <div id="services" class="button-grid"></div>
-            </div>
-            <div class="step">
-                <h2 id="summary-label">ملخص الحجز:</h2>
-                <div id="booking-summary" class="summary-box">
-                    <p id="selected-services">الخدمات المختارة: <span>-</span></p>
-                    <p id="total-duration">المدة الإجمالية: <span>0 دقيقة</span></p>
-                    <p id="total-price">السعر الإجمالي: <span>0 ريال</span></p>
-                </div>
-            </div>
-            <div class="step">
-                <h2 id="barber-label">اختر الحلاق:</h2>
-                <div id="barbers" class="button-grid"></div>
-            </div>
-            <div class="step">
+            <div class="form-group">
                 <label for="datetime" id="datetime-label">اختر التاريخ والوقت:</label>
                 <input type="text" id="datetime" required>
             </div>
-            <div class="step">
+            <div class="form-group">
                 <label for="name" id="name-label">الاسم:</label>
                 <input type="text" id="name" required>
             </div>
-            <div class="step">
+            <div class="form-group">
                 <label for="phone" id="phone-label">رقم الهاتف:</label>
                 <input type="tel" id="phone" required>
             </div>
@@ -61,6 +60,6 @@
         </form>
     </div>
 
-    <script src="script.js" defer></script>
+    <script src="script.js"></script>
 </body>
 </html>
