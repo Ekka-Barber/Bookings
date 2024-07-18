@@ -263,11 +263,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const employeeWorkingHours = {
-        "Abdulkareem": ["08:00", "18:00"],
-        "Hadi": ["10:00", "20:00"],
-        "Khalid": ["09:00", "17:00"],
-        "Tariq": ["12:00", "22:00"],
-        "Mahmoud": ["08:00", "16:00"]
+        "Abdulkareem": ["12:00", "00:00"],
+        "Hadi": ["12:00", "00:00"],
+        "Khalid": ["12:00", "00:00"],
+        "Tariq": ["12:00", "00:00"],
+        "Mahmoud": ["12:00", "00:00"]
     };
 
     const barbers = {
