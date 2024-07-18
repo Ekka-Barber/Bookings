@@ -578,23 +578,25 @@ ${currentLanguage === 'ar' ? 'التاريخ والوقت' : 'Date and Time'}: $
         totalPriceElement.innerHTML = `${priceLabel} <span>${totalPrice} ${currentLanguage === 'ar' ? 'ريال' : 'SAR'}</span>`;
     }
 
-    function initializeDateTimePicker(barber) {
-        const datetimeInput = document.getElementById('datetime');
-        if (!datetimeInput) {
-            console.error('Datetime input not found');
-            return;
-        }
-        const workingHours = employeeWorkingHours[barber];
-        if (typeof flatpickr === 'function') {
-            flatpickr(datetimeInput, {
-                enableTime: true,
-                dateFormat: "Y-m-d H:i",
-                minTime: workingHours[0],
-                maxTime: workingHours[1],
-                locale: currentLanguage === 'ar' ? 'ar' : 'en'
-            });
-        } else {
-            console.error('Flatpickr is not loaded');
-        }
+function initializeDateTimePicker(barber) {
+    const datetimeInput = document.getElementById('datetime');
+    if (!datetimeInput) {
+        console.error('Datetime input not found');
+        return;
     }
+    const workingHours = employeeWorkingHours[barber];
+    if (typeof flatpickr === 'function') {
+        flatpickr.localize(flatpickr.l10ns.ar); // Pre-load Arabic locale
+        flatpickr(datetimeInput, {
+            enableTime: true,
+            dateFormat: "Y-m-d H:i",
+            minTime: workingHours[0],
+            maxTime: workingHours[1],
+            locale: currentLanguage === 'ar' ? 'ar' : 'en',
+            time_24hr: true
+        });
+    } else {
+        console.error('Flatpickr is not loaded');
+    }
+}
 });
