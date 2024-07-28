@@ -69,19 +69,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     description_ar: "مختصين في أحدث ستايلات قص وتهذيب الشعر. بالمكينة يكون مقاس واحد فقط اما التدريج فهنا الاحتراف 🤩"
                 },
                 {
-                    name_en: "Hair Dye | Bigen dye",
+                    name_en: "Hair Dye | Bigen Dye",
                     name_ar: "صبغة شعر - صبغة بيجن",
                     duration: "15m",
                     price: 40,
                     description_en: "Bigen dye in black color.",
-                    description_ar: "صبغة بيجن لون أسود"
+                    description_ar: " صبغة بيجن لون أسود"
                 },
                 {
                     name_en: "Hair Dye | Keune Dutch Brand",
                     name_ar: "صبغة شعر - صبغة كيون الهولندية",
                     duration: "15m",
                     price: 60,
-                    description_en: "Keune dye, the Dutch brand with natural colors",
+                    description_en: "Keune dye, the Dutch brand with natural colors.",
                     description_ar: "- صبغة كيون البراند الهولندي بألوان طبيعية\n-"
                 },
                 {
@@ -317,11 +317,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const employeeWorkingHours = {
-        "Abdulkareem": ["12:00", "00:00"],
-        "Hadi": ["12:00", "00:00"],
-        "Khalid": ["12:00", "00:00"],
-        "Tariq": ["12:00", "00:00"],
-        "Mahmoud": ["12:00", "00:00"]
+        "Abdulkareem": ["12:00", "23:59"],
+        "Hadi": ["12:00", "23:59"],
+        "Khalid": ["12:00", "23:59"],
+        "Tariq": ["12:00", "23:59"],
+        "Mahmoud": ["12:00", "23:59"]
     };
 
     const barbers = {
