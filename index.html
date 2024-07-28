@@ -3,23 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ekkah Barbershop - Book Your Appointment</title>
+    <title>Ekkah Barbershop Booking</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <link rel="preload" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"></noscript>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://npmcdn.com/flatpickr/dist/l10n/ar.js"></script>
 </head>
 <body>
     <div class="language-switcher">
-        <label class="switch">
-            <input type="checkbox" id="languageToggle">
-            <span class="slider">
-                <span class="option ar">AR</span>
-                <span class="option en">EN</span>
-            </span>
-        </label>
+        <span class="language-option active" data-lang="ar">العربية</span>
+        <span class="language-option" data-lang="en">English</span>
     </div>
 
     <div class="logo-container">
@@ -37,9 +30,9 @@
 
         <div id="booking-summary" class="summary-box">
             <h2 id="summary-title">ملخص الحجز:</h2>
-            <p id="selected-services">الخدمات المختارة: <span>-</span></p>
-            <p id="total-duration">المدة الإجمالية: <span>0 دقيقة</span></p>
-            <p id="total-price">السعر الإجمالي: <span>0 ريال</span></p>
+            <p id="selected-services">الخدمات المختارة: -</p>
+            <p id="total-duration">المدة الإجمالية: 0 دقيقة</p>
+            <p id="total-price">السعر الإجمالي: 0 ريال</p>
         </div>
 
         <h2 id="barber-label">اختر الحلاق:</h2>
@@ -47,19 +40,21 @@
 
         <form id="bookingForm">
             <div class="form-group">
-                <label for="datetime" id="datetime-label">اختر التاريخ والوقت:</label>
-                <input type="text" id="datetime" name="datetime" required>
+                <label for="datetime" id="datetime-label">اختر التاريخ والوقت: <span class="required">*</span></label>
+                <input type="text" id="datetime" required>
             </div>
 
             <div class="form-group">
-                <label for="name" id="name-label">الاسم:</label>
-                <input type="text" id="name" name="name" required>
+                <label for="name" id="name-label">الاسم: <span class="required">*</span></label>
+                <input type="text" id="name" required>
             </div>
 
             <div class="form-group">
-                <label for="phone" id="phone-label">رقم الهاتف:</label>
-                <input type="tel" id="phone" name="phone" required>
+                <label for="phone" id="phone-label">رقم الهاتف: <span class="required">*</span></label>
+                <input type="tel" id="phone" pattern="05[0-9]{8}" required>
             </div>
+
+            <p id="whatsapp-message" class="whatsapp-notice">📱 سيتم تأكيد حجزك على الواتساب. 📲 سيصلك ردنا بالتأكيد قريباً!✔️</p>
 
             <button type="submit" id="submit-button">احجز الآن</button>
         </form>
