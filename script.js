@@ -24,7 +24,8 @@ const state = {
     customerDetails: {
         name: '',
         phone: ''
-    }
+    },
+    categories: null
 };
 
 // DOM Elements
@@ -86,6 +87,7 @@ function loadInitialData() {
     db.ref('categories').once('value', snapshot => {
         const categories = snapshot.val();
         if (categories) {
+            state.categories = categories;
             renderCategoriesAndServices(categories);
         } else {
             showError(state.currentLanguage === 'ar' ? 'لم يتم العثور على فئات' : 'No categories found');
@@ -98,6 +100,7 @@ function loadInitialData() {
 
 // Initialize Flatpickr
 function initializeFlatpickr() {
+    flatpickr.localize(flatpickr.l10ns.ar);
     flatpickr(elements.dateTimePicker, {
         enableTime: true,
         dateFormat: "Y-m-d H:i",
@@ -126,9 +129,15 @@ function renderCategoriesAndServices(categories) {
         categoryElement.className = 'category';
         categoryElement.innerHTML = `
             <div class="category-header">${category[state.currentLanguage]}</div>
-            <div class="category-services"></div>
+            <div class="category-services" style="display: none;"></div>
         `;
+        const categoryHeader = categoryElement.querySelector('.category-header');
         const servicesContainer = categoryElement.querySelector('.category-services');
+        
+        categoryHeader.addEventListener('click', () => {
+            servicesContainer.style.display = servicesContainer.style.display === 'none' ? 'block' : 'none';
+        });
+
         Object.entries(category.services).forEach(([serviceId, service]) => {
             const serviceElement = document.createElement('div');
             serviceElement.className = 'service-card';
@@ -445,10 +454,12 @@ function switchLanguage(lang) {
     document.documentElement.lang = lang;
     updateLanguage();
     updateStepUI();
+    renderCategoriesAndServices(state.categories);
     updateSummary();
     elements.languageOptions.forEach(opt =>
         opt.classList.toggle('active', opt.dataset.lang === lang)
     );
+    initializeFlatpickr();
 }
 
 // Update Language
