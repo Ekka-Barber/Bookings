@@ -283,6 +283,7 @@ function updateLanguage() {
     });
 
     // Update current view
+    updateStepContent();
     updateSummary();
 }
 
@@ -576,4 +577,9 @@ function resetBooking() {
     initializeState();
     elements.bookingForm?.reset();
     updateSummary();
+}
+
+// Update Step Content (Assuming this function exists to update the content based on the current step)
+function updateStepContent() {
+    // Implementation of updating the content for the current step
 }
