@@ -1,6 +1,5 @@
 // Firebase Configuration
 const firebaseConfig = {
-    // Your Firebase configuration here
     apiKey: "AIzaSyA0Syrv4XH88PTzQUaSg6vQaZlZMJ_85n8",
     authDomain: "ekka-barbershop.firebaseapp.com",
     databaseURL: "https://ekka-barbershop-default-rtdb.europe-west1.firebasedatabase.app",
@@ -15,61 +14,10 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// Debug Helper Functions
-function showError(message) {
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'error-message';
-    errorDiv.textContent = message;
-    document.body.prepend(errorDiv);
-    console.error(message);
-    setTimeout(() => errorDiv.remove(), 5000); // Remove after 5 seconds
-}
-
-function showSuccess(message) {
-    const successDiv = document.createElement('div');
-    successDiv.className = 'success-message';
-    successDiv.textContent = message;
-    document.body.prepend(successDiv);
-    setTimeout(() => successDiv.remove(), 3000); // Remove after 3 seconds
-}
-
-function logDatabaseContent() {
-    console.log('Checking database content...');
-    db.ref('/').once('value')
-        .then(snapshot => {
-            console.log('Current database content:', snapshot.val());
-        })
-        .catch(error => {
-            console.error('Error reading database:', error);
-            showError('Failed to read database content');
-        });
-}
-
-function testDataPaths() {
-    console.log('Testing database paths...');
-    const paths = [
-        'categories',
-        'barbers',
-        'categories/Packages',
-        'categories/HairServices'
-    ];
-
-    paths.forEach(path => {
-        db.ref(path).once('value')
-            .then(snapshot => {
-                console.log(`Path ${path}:`, snapshot.val() ? 'exists' : 'not found');
-            })
-            .catch(error => {
-                console.error(`Error testing path ${path}:`, error);
-            });
-    });
-}
-
 // Global State
 const state = {
     currentStep: 1,
     currentLanguage: 'ar',
-    selectedCategory: null,
     selectedServices: [],
     selectedDateTime: null,
     selectedBarber: null,
@@ -85,65 +33,28 @@ const elements = {
     bookingSteps: document.querySelectorAll('.booking-step'),
     prevButton: document.querySelector('.prev-btn'),
     nextButton: document.querySelector('.next-btn'),
-    categoriesGrid: document.querySelector('.categories-grid'),
-    servicesGrid: document.querySelector('.services-grid'),
-    barbersGrid: document.querySelector('.barbers-grid'),
+    categoriesServicesGrid: document.querySelector('.categories-services-grid'),
     dateTimePicker: document.querySelector('#appointment-time'),
+    barbersGrid: document.querySelector('.barbers-grid'),
     bookingForm: document.querySelector('#booking-form'),
     summaryContainer: document.querySelector('.booking-summary'),
+    summaryContent: document.querySelector('.summary-content'),
+    toggleSummaryButton: document.querySelector('.toggle-summary'),
     languageOptions: document.querySelectorAll('.language-option')
 };
 
-// Test connection immediately
-console.log('Testing Firebase connection...');
-db.ref('.info/connected').on('value', (snap) => {
-    if (snap.val() === true) {
-        console.log('✅ Connected to Firebase');
-        logDatabaseContent();
-        testDataPaths();
-    } else {
-        console.log('❌ Not connected to Firebase');
-        showError('Not connected to database');
-    }
-});
-
 // Initialize Application
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM Loaded, initializing application...');
-    checkRequiredElements();
     initializeState();
     setupEventListeners();
     loadInitialData();
+    initializeFlatpickr();
 });
-
-// Check Required DOM Elements
-function checkRequiredElements() {
-    const requiredElements = {
-        progressSteps: '.progress-step',
-        bookingSteps: '.booking-step',
-        prevButton: '.prev-btn',
-        nextButton: '.next-btn',
-        categoriesGrid: '.categories-grid',
-        servicesGrid: '.services-grid',
-        barbersGrid: '.barbers-grid',
-        dateTimePicker: '#appointment-time',
-        summaryContainer: '.booking-summary'
-    };
-
-    for (const [key, selector] of Object.entries(requiredElements)) {
-        const element = document.querySelector(selector);
-        if (!element) {
-            console.error(`Missing required element: ${key} (${selector})`);
-            throw new Error(`Required element not found: ${selector}`);
-        }
-    }
-}
 
 // Initialize State
 function initializeState() {
     state.currentStep = 1;
     state.currentLanguage = 'ar';
-    state.selectedCategory = null;
     state.selectedServices = [];
     state.selectedDateTime = null;
     state.selectedBarber = null;
@@ -155,90 +66,119 @@ function initializeState() {
 // Setup Event Listeners
 function setupEventListeners() {
     // Navigation buttons
-    elements.prevButton?.addEventListener('click', () => {
-        console.log('Previous button clicked');
-        if (state.currentStep > 1) {
-            state.currentStep--;
-            updateStepUI();
-        }
-    });
-
-    elements.nextButton?.addEventListener('click', () => {
-        console.log('Next button clicked');
-        if (state.currentStep === 5 && canProceedToNextStep()) {
-            submitBooking();
-        } else if (canProceedToNextStep()) {
-            state.currentStep++;
-            updateStepUI();
-        } else {
-            showError(state.currentLanguage === 'ar' ? 'يرجى إكمال الخطوة الحالية' : 'Please complete the current step');
-        }
-    });
+    elements.prevButton?.addEventListener('click', handlePrevStep);
+    elements.nextButton?.addEventListener('click', handleNextStep);
 
     // Language switcher
     elements.languageOptions?.forEach(option => {
-        option.addEventListener('click', () => {
-            const lang = option.dataset.lang;
-            state.currentLanguage = lang;
-            document.body.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
-            document.documentElement.lang = lang;
-            
-            // Update UI
-            updateLanguage();
-            updateStepUI();
-            updateSummary();
-            
-            // Update active language class
-            elements.languageOptions.forEach(opt =>
-                opt.classList.toggle('active', opt.dataset.lang === lang)
-            );
-        });
+        option.addEventListener('click', () => switchLanguage(option.dataset.lang));
     });
 
     // Form inputs
-    elements.bookingForm?.addEventListener('input', (e) => {
-        if (e.target.id === 'customer-name' || e.target.id === 'customer-phone') {
-            state.customerDetails[e.target.id.replace('customer-', '')] = e.target.value;
-            console.log('Updated customer details:', state.customerDetails);
-        }
-    });
+    elements.bookingForm?.addEventListener('input', handleFormInput);
+
+    // Toggle summary
+    elements.toggleSummaryButton?.addEventListener('click', toggleSummary);
 }
 
 // Load Initial Data
 function loadInitialData() {
-    console.log('Loading initial data...');
-    showLoading(elements.categoriesGrid);
-
-    // Load categories
-    db.ref('categories').on('value', snapshot => {
+    db.ref('categories').once('value', snapshot => {
         const categories = snapshot.val();
-        console.log('Categories loaded:', categories);
-        
         if (categories) {
-            renderCategories(categories);
+            renderCategoriesAndServices(categories);
         } else {
-            console.error('No categories found');
             showError(state.currentLanguage === 'ar' ? 'لم يتم العثور على فئات' : 'No categories found');
         }
-        hideLoading(elements.categoriesGrid);
     }, error => {
         console.error('Error loading categories:', error);
         showError(state.currentLanguage === 'ar' ? 'خطأ في تحميل الفئات' : 'Error loading categories');
-        hideLoading(elements.categoriesGrid);
     });
+}
 
-    // Load barbers
-    db.ref('barbers').on('value', snapshot => {
-        const barbers = snapshot.val();
-        console.log('Barbers loaded:', barbers);
-        
-        if (barbers) {
-            const activeBarbers = Object.entries(barbers)
-                .filter(([_, barber]) => barber.active)
-                .reduce((acc, [id, barber]) => ({ ...acc, [id]: barber }), {});
-            renderBarbers(activeBarbers);
+// Initialize Flatpickr
+function initializeFlatpickr() {
+    flatpickr(elements.dateTimePicker, {
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+        minTime: "12:00",
+        maxTime: "23:45",
+        minuteIncrement: 15,
+        disable: [
+            function(date) {
+                return (date.getHours() < 12 || date.getHours() >= 20);
+            }
+        ],
+        locale: state.currentLanguage === 'ar' ? 'ar' : 'en',
+        onChange: (selectedDates, dateStr) => {
+            state.selectedDateTime = dateStr;
+            loadAvailableBarbers(dateStr);
+            updateSummary();
+        }
+    });
+}
+
+// Render Categories and Services
+function renderCategoriesAndServices(categories) {
+    elements.categoriesServicesGrid.innerHTML = '';
+    Object.entries(categories).forEach(([categoryId, category]) => {
+        const categoryElement = document.createElement('div');
+        categoryElement.className = 'category';
+        categoryElement.innerHTML = `
+            <div class="category-header">${category[state.currentLanguage]}</div>
+            <div class="category-services"></div>
+        `;
+        const servicesContainer = categoryElement.querySelector('.category-services');
+        Object.entries(category.services).forEach(([serviceId, service]) => {
+            const serviceElement = document.createElement('div');
+            serviceElement.className = 'service-card';
+            serviceElement.innerHTML = `
+                <h3>${service[`name_${state.currentLanguage}`]}</h3>
+                <p>${service.duration} - ${service.price} SAR</p>
+                <p class="service-description">${service[`description_${state.currentLanguage}`] || ''}</p>
+            `;
+            serviceElement.addEventListener('click', () => toggleService(categoryId, serviceId, service));
+            servicesContainer.appendChild(serviceElement);
+        });
+        elements.categoriesServicesGrid.appendChild(categoryElement);
+    });
+}
+
+// Toggle Service Selection
+function toggleService(categoryId, serviceId, service) {
+    const index = state.selectedServices.findIndex(s => s.id === serviceId);
+    if (index === -1) {
+        state.selectedServices.push({ id: serviceId, categoryId, ...service });
+    } else {
+        state.selectedServices.splice(index, 1);
+    }
+    updateServiceSelection(serviceId);
+    updateSummary();
+}
+
+// Update Service Selection UI
+function updateServiceSelection(serviceId) {
+    const serviceCards = document.querySelectorAll('.service-card');
+    serviceCards.forEach(card => {
+        const cardServiceId = card.querySelector('h3').textContent;
+        if (state.selectedServices.some(s => s[`name_${state.currentLanguage}`] === cardServiceId)) {
+            card.classList.add('selected');
         } else {
-            console.error('No barbers found');
+            card.classList.remove('selected');
+        }
+    });
+}
+
+// Load Available Barbers
+function loadAvailableBarbers(dateTime) {
+    db.ref('barbers').once('value', snapshot => {
+        const barbers = snapshot.val();
+        if (barbers) {
+            const availableBarbers = Object.entries(barbers)
+                .filter(([_, barber]) => isBarberAvailable(barber, dateTime))
+                .reduce((acc, [id, barber]) => ({ ...acc, [id]: barber }), {});
+            renderBarbers(availableBarbers);
+        } else {
             showError(state.currentLanguage === 'ar' ? 'لم يتم العثور على حلاقين' : 'No barbers found');
         }
     }, error => {
@@ -247,169 +187,41 @@ function loadInitialData() {
     });
 }
 
-// Update UI Based on Current Step
-function updateStepUI() {
-    console.log('Updating UI for step:', state.currentStep);
-    
-    // Update booking steps
-    elements.bookingSteps.forEach((step, index) => {
-        step.classList.toggle('active', index + 1 === state.currentStep);
-    });
-
-    // Update progress steps
-    elements.progressSteps.forEach((step, index) => {
-        step.classList.toggle('active', index + 1 === state.currentStep);
-        step.classList.toggle('completed', index + 1 < state.currentStep);
-    });
-
-    // Update navigation buttons
-    if (elements.prevButton) {
-        elements.prevButton.disabled = state.currentStep === 1;
-    }
-    if (elements.nextButton) {
-        elements.nextButton.textContent = state.currentStep === 5 
-            ? (state.currentLanguage === 'ar' ? 'تأكيد الحجز' : 'Confirm Booking')
-            : (state.currentLanguage === 'ar' ? 'التالي' : 'Next');
-    }
+// Check if Barber is Available
+function isBarberAvailable(barber, dateTime) {
+    const appointmentDate = new Date(dateTime);
+    const appointmentTime = appointmentDate.getHours() * 60 + appointmentDate.getMinutes();
+    const [startHour, startMinute] = barber.working_hours.start.split(':').map(Number);
+    const [endHour, endMinute] = barber.working_hours.end.split(':').map(Number);
+    const startTime = startHour * 60 + startMinute;
+    const endTime = endHour * 60 + endMinute;
+    return appointmentTime >= startTime && appointmentTime < endTime;
 }
 
-// Update Language
-function updateLanguage() {
-    console.log('Updating language to:', state.currentLanguage);
-    
-    // Update step titles
-    document.querySelectorAll('[data-ar][data-en]').forEach(element => {
-        element.textContent = element.dataset[state.currentLanguage];
-    });
-
-    // Update current view
-    updateStepContent();
-    updateSummary();
-}
-
-// Loading State UI
-function showLoading(element) {
-    if (element) {
-        element.classList.add('loading');
-    }
-}
-
-function hideLoading(element) {
-    if (element) {
-        element.classList.remove('loading');
-    }
-}
-
-// Render Functions
-function renderCategories(categories) {
-    console.log('Rendering categories:', categories);
-    if (!elements.categoriesGrid) return;
-
-    elements.categoriesGrid.innerHTML = '';
-    Object.entries(categories).forEach(([key, category]) => {
-        const button = document.createElement('button');
-        button.className = 'category-button';
-        button.textContent = category[state.currentLanguage];
-        button.onclick = () => {
-            console.log('Category selected:', key);
-            selectCategory(key, category);
-        };
-        elements.categoriesGrid.appendChild(button);
-    });
-}
-
-function renderServices(services) {
-    console.log('Rendering services:', services);
-    if (!elements.servicesGrid) return;
-
-    elements.servicesGrid.innerHTML = '';
-    Object.entries(services).forEach(([key, service]) => {
-        const serviceCard = document.createElement('div');
-        serviceCard.className = 'service-card';
-        serviceCard.innerHTML = `
-            <h3>${service[`name_${state.currentLanguage}`]}</h3>
-            <p>${service.duration} - ${service.price} SAR</p>
-            <p class="service-description">
-                ${service[`description_${state.currentLanguage}`] || ''}
-            </p>
-        `;
-        serviceCard.onclick = () => toggleService(key, service);
-        
-        // Add selected class if service is already selected
-        if (state.selectedServices.some(s => s.id === key)) {
-            serviceCard.classList.add('selected');
-        }
-        
-        elements.servicesGrid.appendChild(serviceCard);
-    });
-}
-
+// Render Barbers
 function renderBarbers(barbers) {
-    console.log('Rendering barbers:', barbers);
-    if (!elements.barbersGrid) return;
-
     elements.barbersGrid.innerHTML = '';
-    Object.entries(barbers)
-        .filter(([_, barber]) => barber.active)
-        .forEach(([key, barber]) => {
-            const button = document.createElement('button');
-            button.className = 'barber-button';
-            button.textContent = barber[`name_${state.currentLanguage}`];
-            button.onclick = () => selectBarber(key, barber);
-            
-            if (state.selectedBarber?.id === key) {
-                button.classList.add('selected');
-            }
-            
-            elements.barbersGrid.appendChild(button);
-        });
+    Object.entries(barbers).forEach(([barberId, barber]) => {
+        const barberElement = document.createElement('div');
+        barberElement.className = 'barber-card';
+        barberElement.textContent = barber[`name_${state.currentLanguage}`];
+        barberElement.addEventListener('click', () => selectBarber(barberId, barber));
+        elements.barbersGrid.appendChild(barberElement);
+    });
 }
 
-// Selection Handlers
-function selectCategory(categoryId, category) {
-    state.selectedCategory = { id: categoryId, ...category };
-    
-    // Load services for this category
-    db.ref(`categories/${categoryId}/services`).once('value')
-        .then(snapshot => {
-            const services = snapshot.val();
-            if (services) {
-                renderServices(services);
-                state.currentStep++;
-                updateStepUI();
-            } else {
-                showError(state.currentLanguage === 'ar' ? 
-                    'لا توجد خدمات في هذه الفئة' : 
-                    'No services in this category');
-            }
-        })
-        .catch(error => {
-            console.error('Error loading services:', error);
-            showError(state.currentLanguage === 'ar' ? 
-                'خطأ في تحميل الخدمات' : 
-                'Error loading services');
-        });
-}
-
-function toggleService(serviceId, service) {
-    const index = state.selectedServices.findIndex(s => s.id === serviceId);
-    if (index === -1) {
-        state.selectedServices.push({ id: serviceId, ...service });
-    } else {
-        state.selectedServices.splice(index, 1);
-    }
-    
-    // Update UI
-    updateServiceSelection(serviceId);
+// Select Barber
+function selectBarber(barberId, barber) {
+    state.selectedBarber = { id: barberId, ...barber };
+    updateBarberSelection();
     updateSummary();
 }
 
-function updateServiceSelection(serviceId) {
-    const serviceCards = elements.servicesGrid.querySelectorAll('.service-card');
-    serviceCards.forEach(card => {
-        const serviceName = card.querySelector('h3').textContent;
-        const service = state.selectedServices.find(s => s[`name_${state.currentLanguage}`] === serviceName);
-        if (service && service.id === serviceId) {
+// Update Barber Selection UI
+function updateBarberSelection() {
+    const barberCards = document.querySelectorAll('.barber-card');
+    barberCards.forEach(card => {
+        if (card.textContent === state.selectedBarber[`name_${state.currentLanguage}`]) {
             card.classList.add('selected');
         } else {
             card.classList.remove('selected');
@@ -417,20 +229,10 @@ function updateServiceSelection(serviceId) {
     });
 }
 
-function selectBarber(barberId, barber) {
-    state.selectedBarber = { id: barberId, ...barber };
-    updateSummary();
-    state.currentStep++;
-    updateStepUI();
-}
-
 // Update Summary
 function updateSummary() {
-    if (!elements.summaryContainer) return;
-
     const { totalDuration, totalPrice } = calculateTotals();
     const summary = `
-        <h3>${state.currentLanguage === 'ar' ? 'ملخص الحجز' : 'Booking Summary'}</h3>
         <div class="summary-services">
             ${state.selectedServices.map(service => `
                 <div class="summary-service-item">
@@ -449,43 +251,108 @@ function updateSummary() {
                 ${state.selectedBarber[`name_${state.currentLanguage}`]}
             </div>
         ` : ''}
+        ${state.selectedDateTime ? `
+            <div class="summary-datetime">
+                ${state.currentLanguage === 'ar' ? 'الموعد' : 'Appointment'}: 
+                ${formatDateTime(state.selectedDateTime)}
+            </div>
+        ` : ''}
     `;
     
-    elements.summaryContainer.innerHTML = summary;
+    elements.summaryContent.innerHTML = summary;
 }
 
-// Validation and Submission
+// Calculate Totals
+function calculateTotals() {
+    return state.selectedServices.reduce((acc, service) => ({
+        totalDuration: acc.totalDuration + parseDuration(service.duration),
+        totalPrice: acc.totalPrice + service.price
+    }), { totalDuration: 0, totalPrice: 0 });
+}
+
+// Parse Duration
+function parseDuration(duration) {
+    const hours = duration.match(/(\d+)h/);
+    const minutes = duration.match(/(\d+)m/);
+    return (hours ? parseInt(hours[1]) * 60 : 0) + (minutes ? parseInt(minutes[1]) : 0);
+}
+
+// Format Duration
+function formatDuration(minutes) {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    
+    if (state.currentLanguage === 'ar') {
+        return hours > 0 ? 
+            `${hours} ساعة ${mins > 0 ? `و ${mins} دقيقة` : ''}` : 
+            `${mins} دقيقة`;
+    }
+    
+    return hours > 0 ? 
+        `${hours}h${mins > 0 ? ` ${mins}m` : ''}` : 
+        `${mins}m`;
+}
+
+// Format Date Time
+function formatDateTime(dateTime) {
+    const date = new Date(dateTime);
+    const options = { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric', 
+        hour: '2-digit', 
+        minute: '2-digit'
+    };
+    return date.toLocaleDateString(state.currentLanguage === 'ar' ? 'ar-SA' : 'en-US', options);
+}
+
+// Handle Previous Step
+function handlePrevStep() {
+    if (state.currentStep > 1) {
+        state.currentStep--;
+        updateStepUI();
+    }
+}
+
+// Handle Next Step
+function handleNextStep() {
+    if (canProceedToNextStep()) {
+        if (state.currentStep === 4) {
+            submitBooking();
+        } else {
+            state.currentStep++;
+            updateStepUI();
+        }
+    } else {
+        showError(state.currentLanguage === 'ar' ? 'يرجى إكمال الخطوة الحالية' : 'Please complete the current step');
+    }
+}
+
+// Check if Can Proceed to Next Step
 function canProceedToNextStep() {
     switch (state.currentStep) {
         case 1:
-            return state.selectedCategory !== null;
-        case 2:
             return state.selectedServices.length > 0;
-        case 3:
+        case 2:
             return state.selectedDateTime !== null;
-        case 4:
+        case 3:
             return state.selectedBarber !== null;
-        case 5:
+        case 4:
             return validateCustomerDetails();
         default:
             return false;
     }
 }
 
+// Validate Customer Details
 function validateCustomerDetails() {
     const { name, phone } = state.customerDetails;
     const phonePattern = /^05[0-9]{8}$/;
     return name.trim().length > 0 && phonePattern.test(phone);
 }
 
+// Submit Booking
 function submitBooking() {
-    if (!validateCustomerDetails()) {
-        showError(state.currentLanguage === 'ar' ? 
-            'يرجى إدخال جميع البيانات المطلوبة' : 
-            'Please enter all required information');
-        return;
-    }
-
     const bookingData = {
         customerName: state.customerDetails.name,
         customerPhone: state.customerDetails.phone,
@@ -520,40 +387,13 @@ function submitBooking() {
         });
 }
 
-// Utility Functions
-function calculateTotals() {
-    return state.selectedServices.reduce((acc, service) => ({
-        totalDuration: acc.totalDuration + parseDuration(service.duration),
-        totalPrice: acc.totalPrice + service.price
-    }), { totalDuration: 0, totalPrice: 0 });
-}
-
-function parseDuration(duration) {
-    const hours = duration.match(/(\d+)h/);
-    const minutes = duration.match(/(\d+)m/);
-    return (hours ? parseInt(hours[1]) * 60 : 0) + (minutes ? parseInt(minutes[1]) : 0);
-}
-
-function formatDuration(minutes) {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    
-    if (state.currentLanguage === 'ar') {
-        return hours > 0 ? 
-            `${hours} ساعة ${mins > 0 ? `و ${mins} دقيقة` : ''}` : 
-            `${mins} دقيقة`;
-    }
-    
-    return hours > 0 ? 
-        `${hours}h${mins > 0 ? ` ${mins}m` : ''}` : 
-        `${mins}m`;
-}
-
+// Send to WhatsApp
 function sendToWhatsApp(bookingData) {
     const message = formatWhatsAppMessage(bookingData);
     window.open(`https://wa.me/966599791440?text=${encodeURIComponent(message)}`, '_blank');
 }
 
+// Format WhatsApp Message
 function formatWhatsAppMessage(bookingData) {
     const servicesText = bookingData.services
         .map(s => `- ${s.name}: ${s.price} SAR`)
@@ -570,16 +410,83 @@ ${servicesText}
 ${state.currentLanguage === 'ar' ? 'المدة' : 'Duration'}: ${formatDuration(bookingData.totalDuration)}
 ${state.currentLanguage === 'ar' ? 'السعر' : 'Price'}: ${bookingData.totalPrice} SAR
 ${state.currentLanguage === 'ar' ? 'الحلاق' : 'Barber'}: ${bookingData.barberName}
+${state.currentLanguage === 'ar' ? 'الموعد' : 'Appointment'}: ${formatDateTime(bookingData.dateTime)}
 ==========`;
 }
 
+// Reset Booking
 function resetBooking() {
     initializeState();
     elements.bookingForm?.reset();
     updateSummary();
 }
 
-// Update Step Content (Assuming this function exists to update the content based on the current step)
-function updateStepContent() {
-    // Implementation of updating the content for the current step
+// Update Step UI
+function updateStepUI() {
+    elements.bookingSteps.forEach((step, index) => {
+        step.classList.toggle('active', index + 1 === state.currentStep);
+    });
+
+    elements.progressSteps.forEach((step, index) => {
+        step.classList.toggle('active', index + 1 === state.currentStep);
+        step.classList.toggle('completed', index + 1 < state.currentStep);
+    });
+
+    elements.prevButton.disabled = state.currentStep === 1;
+    elements.nextButton.textContent = state.currentStep === 4 
+        ? (state.currentLanguage === 'ar' ? 'تأكيد الحجز' : 'Confirm Booking')
+        : (state.currentLanguage === 'ar' ? 'التالي' : 'Next');
+}
+
+// Switch Language
+function switchLanguage(lang) {
+    state.currentLanguage = lang;
+    document.body.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+    document.documentElement.lang = lang;
+    updateLanguage();
+    updateStepUI();
+    updateSummary();
+    elements.languageOptions.forEach(opt =>
+        opt.classList.toggle('active', opt.dataset.lang === lang)
+    );
+}
+
+// Update Language
+function updateLanguage() {
+    document.querySelectorAll('[data-ar][data-en]').forEach(element => {
+        element.textContent = element.dataset[state.currentLanguage];
+    });
+}
+
+// Handle Form Input
+function handleFormInput(e) {
+    if (e.target.id === 'customer-name' || e.target.id === 'customer-phone') {
+        state.customerDetails[e.target.id.replace('customer-', '')] = e.target.value;
+    }
+}
+
+// Toggle Summary
+function toggleSummary() {
+    elements.summaryContainer.classList.toggle('hidden');
+    elements.toggleSummaryButton.textContent = elements.summaryContainer.classList.contains('hidden')
+        ? (state.currentLanguage === 'ar' ? 'عرض الملخص' : 'Show Summary')
+        : (state.currentLanguage === 'ar' ? 'إخفاء الملخص' : 'Hide Summary');
+}
+
+// Show Error
+function showError(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.textContent = message;
+    document.body.prepend(errorDiv);
+    setTimeout(() => errorDiv.remove(), 5000);
+}
+
+// Show Success
+function showSuccess(message) {
+    const successDiv = document.createElement('div');
+    successDiv.className = 'success-message';
+    successDiv.textContent = message;
+    document.body.prepend(successDiv);
+    setTimeout(() => successDiv.remove(), 3000);
 }
