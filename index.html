@@ -3,63 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ekkah Barbershop Booking</title>
+    <title>Ekka Barbershop - Book Appointment</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-database-compat.js"></script>
+    <!-- Styles -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 </head>
 <body>
+    <!-- Language Switcher -->
     <div class="language-switcher">
-        <span class="language-option active" data-lang="ar">العربية</span>
-        <span class="language-option" data-lang="en">English</span>
+        <div class="language-option active" data-lang="ar">العربية</div>
+        <div class="language-option" data-lang="en">English</div>
     </div>
 
+    <!-- Logo -->
     <div class="logo-container">
-        <img src="logo.png" alt="Ekkah Barbershop Logo" class="logo">
+        <img src="logo.png" alt="Ekka Barbershop" class="logo">
     </div>
 
+    <!-- Booking Container -->
     <div class="booking-container">
-        <h1 id="main-title">احجز موعدك</h1>
-
-        <h2 id="category-label">اختر الفئة:</h2>
-        <div class="button-grid categories"></div>
-
-        <h2 id="service-label">اختر الخدمة:</h2>
-        <div class="button-grid services"></div>
-
-        <div id="booking-summary" class="summary-box">
-            <h2 id="summary-title">ملخص الحجز:</h2>
-            <p id="selected-services">الخدمات المختارة: -</p>
-            <p id="total-duration">المدة الإجمالية: 0 دقيقة</p>
-            <p id="total-price">السعر الإجمالي: 0 ريال</p>
+        <!-- Progress Bar -->
+        <div class="progress-bar">
+            <div class="progress-step active" data-step="1">
+                <div class="step-number">1</div>
+                <div class="step-label" data-ar="الفئة" data-en="Category"></div>
+            </div>
+            <div class="progress-step" data-step="2">
+                <div class="step-number">2</div>
+                <div class="step-label" data-ar="الخدمات" data-en="Services"></div>
+            </div>
+            <div class="progress-step" data-step="3">
+                <div class="step-number">3</div>
+                <div class="step-label" data-ar="الموعد" data-en="Date & Time"></div>
+            </div>
+            <div class="progress-step" data-step="4">
+                <div class="step-number">4</div>
+                <div class="step-label" data-ar="الحلاق" data-en="Barber"></div>
+            </div>
+            <div class="progress-step" data-step="5">
+                <div class="step-number">5</div>
+                <div class="step-label" data-ar="التأكيد" data-en="Confirm"></div>
+            </div>
         </div>
 
-        <h2 id="barber-label">اختر الحلاق:</h2>
-        <div class="button-grid barbers"></div>
-
-        <form id="bookingForm">
-            <div class="form-group">
-                <label for="datetime" id="datetime-label">اختر التاريخ والوقت: <span class="required">*</span></label>
-                <input type="text" id="datetime" required>
+        <!-- Booking Steps -->
+        <div class="booking-steps">
+            <!-- Step 1: Categories -->
+            <div class="booking-step active" id="step-1">
+                <h2 class="step-title" data-ar="اختر الفئة" data-en="Choose Category"></h2>
+                <div class="categories-grid"></div>
             </div>
 
-            <div class="form-group">
-                <label for="name" id="name-label">الاسم: <span class="required">*</span></label>
-                <input type="text" id="name" required>
+            <!-- Step 2: Services -->
+            <div class="booking-step" id="step-2">
+                <h2 class="step-title" data-ar="اختر الخدمات" data-en="Choose Services"></h2>
+                <div class="services-grid"></div>
+                <button class="add-service-btn" data-ar="إضافة خدمة أخرى" data-en="Add Another Service">+</button>
             </div>
 
-            <div class="form-group">
-                <label for="phone" id="phone-label">رقم الهاتف: <span class="required">*</span></label>
-                <input type="tel" id="phone" pattern="05[0-9]{8}" required>
+            <!-- Step 3: Date & Time -->
+            <div class="booking-step" id="step-3">
+                <h2 class="step-title" data-ar="اختر الموعد" data-en="Choose Date & Time"></h2>
+                <div class="datetime-picker">
+                    <input type="datetime-local" id="appointment-time">
+                </div>
             </div>
 
-            <p id="whatsapp-message" class="whatsapp-notice">📱 سيتم تأكيد حجزك على الواتساب. 📲 سيصلك ردنا بالتأكيد قريباً!✔️</p>
+            <!-- Step 4: Barber Selection -->
+            <div class="booking-step" id="step-4">
+                <h2 class="step-title" data-ar="اختر الحلاق" data-en="Choose Barber"></h2>
+                <div class="barbers-grid"></div>
+            </div>
 
-            <button type="submit" id="submit-button">احجز الآن</button>
-        </form>
+            <!-- Step 5: Customer Details -->
+            <div class="booking-step" id="step-5">
+                <h2 class="step-title" data-ar="أدخل بياناتك" data-en="Enter Your Details"></h2>
+                <form id="booking-form">
+                    <div class="form-group">
+                        <label for="name" data-ar="الاسم" data-en="Name"></label>
+                        <input type="text" id="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="phone" data-ar="رقم الجوال" data-en="Phone"></label>
+                        <input type="tel" id="phone" pattern="05[0-9]{8}" required>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="step-navigation">
+            <button class="prev-btn" disabled data-ar="السابق" data-en="Previous">←</button>
+            <button class="next-btn" data-ar="التالي" data-en="Next">→</button>
+        </div>
+
+        <!-- Booking Summary -->
+        <div class="booking-summary">
+            <h3 class="summary-title" data-ar="ملخص الحجز" data-en="Booking Summary"></h3>
+            <div class="selected-services"></div>
+            <div class="total-duration"></div>
+            <div class="total-price"></div>
+        </div>
+
+        <!-- WhatsApp Notice -->
+        <div class="whatsapp-notice">
+            <span data-ar="سيتم تأكيد حجزك على الواتساب" data-en="Your booking will be confirmed via WhatsApp"></span>
+            📱 ✅
+        </div>
     </div>
 
-    <script src="script.js"></script>
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/l10n/ar.min.js"></script>
+    <script src="booking.js"></script>
 </body>
 </html>
