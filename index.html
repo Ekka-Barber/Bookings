@@ -3,113 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ekka Barbershop - Book Appointment</title>
-    
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database-compat.js"></script>
-    
-    <!-- Flatpickr -->
+    <title>Ekka Barbershop Booking</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
-    <!-- Styles -->
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Language Switcher -->
-    <div class="language-switcher">
-        <div class="language-option active" data-lang="ar">العربية</div>
-        <div class="language-option" data-lang="en">English</div>
-    </div>
+    <div class="container">
+        <header>
+            <h1 data-ar="حجز موعد في إيكا باربرشوب" data-en="Book an Appointment at Ekka Barbershop">حجز موعد في إيكا باربرشوب</h1>
+            <div class="language-switcher">
+                <button class="language-option active" data-lang="ar">عربي</button>
+                <button class="language-option" data-lang="en">English</button>
+            </div>
+        </header>
 
-    <!-- Logo -->
-    <div class="logo-container">
-        <img src="logo.png" alt="Ekka Barbershop" class="logo">
-    </div>
-
-    <!-- Booking Container -->
-    <div class="booking-container">
-        <!-- Progress Bar -->
         <div class="progress-bar">
-            <div class="progress-step active" data-step="1">
-                <div class="step-number">1</div>
-                <div class="step-label" data-ar="الخدمات" data-en="Services">الخدمات</div>
-            </div>
-            <div class="progress-step" data-step="2">
-                <div class="step-number">2</div>
-                <div class="step-label" data-ar="الموعد" data-en="Date & Time">الموعد</div>
-            </div>
-            <div class="progress-step" data-step="3">
-                <div class="step-number">3</div>
-                <div class="step-label" data-ar="الحلاق" data-en="Barber">الحلاق</div>
-            </div>
-            <div class="progress-step" data-step="4">
-                <div class="step-number">4</div>
-                <div class="step-label" data-ar="التأكيد" data-en="Confirm">التأكيد</div>
-            </div>
+            <div class="progress-step active" data-ar="الخدمات" data-en="Services">الخدمات</div>
+            <div class="progress-step" data-ar="التاريخ والوقت" data-en="Date & Time">التاريخ والوقت</div>
+            <div class="progress-step" data-ar="الحلاق" data-en="Barber">الحلاق</div>
+            <div class="progress-step" data-ar="التأكيد" data-en="Confirmation">التأكيد</div>
         </div>
 
-        <!-- Booking Steps -->
-        <div class="booking-steps">
-            <!-- Step 1: Categories and Services -->
-            <div class="booking-step active" id="step-1">
-                <h2 class="step-title" data-ar="اختر الخدمة أو الخدمات التي تحب" data-en="Choose the service or services you prefer">اختر الخدمة أو الخدمات التي تحب</h2>
+        <main>
+            <div class="booking-step active">
+                <h2 data-ar="اختر الخدمات" data-en="Choose Services">اختر الخدمات</h2>
                 <div class="categories-services-grid"></div>
             </div>
 
-            <!-- Step 2: Date & Time -->
-            <div class="booking-step" id="step-2">
-                <h2 class="step-title" data-ar="اختر الموعد" data-en="Choose Date & Time">اختر الموعد</h2>
-                <div class="datetime-picker">
-                    <input type="text" id="appointment-time" placeholder="اختر التاريخ والوقت">
-                </div>
+            <div class="booking-step">
+                <h2 data-ar="اختر التاريخ والوقت" data-en="Choose Date and Time">اختر التاريخ والوقت</h2>
+                <input type="text" id="appointment-time" placeholder="اختر التاريخ والوقت" data-ar-placeholder="اختر التاريخ والوقت" data-en-placeholder="Select date and time">
             </div>
 
-            <!-- Step 3: Barber Selection -->
-            <div class="booking-step" id="step-3">
-                <h2 class="step-title" data-ar="اختر الحلاق" data-en="Choose Barber">اختر الحلاق</h2>
+            <div class="booking-step">
+                <h2 data-ar="اختر الحلاق" data-en="Choose Barber">اختر الحلاق</h2>
                 <div class="barbers-grid"></div>
             </div>
 
-            <!-- Step 4: Customer Details -->
-            <div class="booking-step" id="step-4">
-                <h2 class="step-title" data-ar="أدخل بياناتك" data-en="Enter Your Details">أدخل بياناتك</h2>
+            <div class="booking-step">
+                <h2 data-ar="تأكيد الحجز" data-en="Confirm Booking">تأكيد الحجز</h2>
                 <form id="booking-form">
-                    <div class="form-group">
-                        <label for="customer-name" data-ar="الاسم" data-en="Name">الاسم</label>
-                        <input type="text" id="customer-name" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="customer-phone" data-ar="رقم الجوال" data-en="Phone">رقم الجوال</label>
-                        <input type="tel" id="customer-phone" pattern="05[0-9]{8}" required>
-                    </div>
+                    <input type="text" id="customer-name" required data-ar-placeholder="الاسم" data-en-placeholder="Name">
+                    <input type="tel" id="customer-phone" required data-ar-placeholder="رقم الجوال" data-en-placeholder="Phone Number">
                 </form>
             </div>
-        </div>
+        </main>
 
-        <!-- Navigation Buttons -->
-        <div class="step-navigation">
-            <button class="prev-btn" disabled data-ar="السابق" data-en="Previous">←</button>
-            <button class="next-btn" data-ar="التالي" data-en="Next">→</button>
-        </div>
-
-        <!-- Booking Summary -->
         <div class="booking-summary">
-            <h3 class="summary-title" data-ar="ملخص الحجز" data-en="Booking Summary">ملخص الحجز</h3>
+            <h3 data-ar="ملخص الحجز" data-en="Booking Summary">ملخص الحجز</h3>
             <div class="summary-content"></div>
-            <button class="toggle-summary" data-ar="إخفاء الملخص" data-en="Hide Summary">إخفاء الملخص</button>
         </div>
 
-        <!-- WhatsApp Notice -->
-        <div class="whatsapp-notice">
-            <span data-ar="سيتم تأكيد حجزك على الواتساب" data-en="Your booking will be confirmed via WhatsApp">سيتم تأكيد حجزك على الواتساب</span>
-            📱 ✅
+        <div class="navigation-buttons">
+            <button class="prev-btn" data-ar="السابق" data-en="Previous">السابق</button>
+            <button class="next-btn" data-ar="التالي" data-en="Next">التالي</button>
         </div>
+
+        <button class="toggle-summary" data-ar="إخفاء الملخص" data-en="Hide Summary">إخفاء الملخص</button>
     </div>
 
-    <!-- Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/ar.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
