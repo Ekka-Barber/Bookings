@@ -121,41 +121,45 @@ body[dir="ltr"] {
     transform: translateY(0);
 }
 
-/* Categories and Services Grid */
-.categories-services-grid {
+/* Grid Layouts */
+.categories-grid,
+.services-grid,
+.barbers-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1rem;
+    margin: 1rem 0;
 }
 
-.category {
-    border: 1px solid var(--border-color);
+/* Button Styles */
+button {
+    padding: 0.75rem 1.5rem;
+    border: none;
     border-radius: 0.5rem;
-    overflow: hidden;
-}
-
-.category-header {
-    background-color: var(--primary-color);
+    background: var(--primary-color);
     color: white;
-    padding: 0.75rem;
     cursor: pointer;
+    transition: all var(--transition-speed);
+    font-family: inherit;
+    font-weight: bold;
 }
 
-.category-services {
-    display: none;
-    padding: 1rem;
+button:hover {
+    background: var(--hover-color);
+    transform: translateY(-2px);
 }
 
-.category.expanded .category-services {
-    display: block;
+button:disabled {
+    background: #e0e0e0;
+    cursor: not-allowed;
+    transform: none;
 }
 
-/* Service Card Styles */
+/* Service Selection Styles */
 .service-card {
     border: 1px solid var(--border-color);
     border-radius: 0.5rem;
     padding: 1rem;
-    margin-bottom: 1rem;
     cursor: pointer;
     transition: all var(--transition-speed);
 }
@@ -166,52 +170,6 @@ body[dir="ltr"] {
 }
 
 .service-card.selected {
-    background: var(--primary-color);
-    color: white;
-}
-
-.service-description {
-    margin-top: 0.5rem;
-    font-size: 0.9rem;
-    color: #666;
-    display: none;
-}
-
-.service-card.expanded .service-description {
-    display: block;
-}
-
-/* Date Time Picker Customization */
-.flatpickr-calendar {
-    font-family: 'Tajawal', Arial, sans-serif;
-}
-
-.flatpickr-current-month {
-    font-family: 'Tajawal', Arial, sans-serif;
-}
-
-/* Barbers Grid */
-.barbers-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 1rem;
-}
-
-.barber-card {
-    border: 1px solid var(--border-color);
-    border-radius: 0.5rem;
-    padding: 1rem;
-    text-align: center;
-    cursor: pointer;
-    transition: all var(--transition-speed);
-}
-
-.barber-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.barber-card.selected {
     background: var(--primary-color);
     color: white;
 }
@@ -242,67 +200,12 @@ input:focus {
     box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
 }
 
-/* Button Styles */
-button {
-    padding: 0.75rem 1.5rem;
-    border: none;
-    border-radius: 0.5rem;
-    background: var(--primary-color);
-    color: white;
-    cursor: pointer;
-    transition: all var(--transition-speed);
-    font-family: inherit;
-    font-weight: bold;
-}
-
-button:hover {
-    background: var(--hover-color);
-    transform: translateY(-2px);
-}
-
-button:disabled {
-    background: #e0e0e0;
-    cursor: not-allowed;
-    transform: none;
-}
-
-/* Navigation Buttons */
-.step-navigation {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 2rem;
-}
-
-/* Booking Summary */
+/* Summary Styles */
 .booking-summary {
-    position: fixed;
-    bottom: 1rem;
-    right: 1rem;
-    width: 300px;
-    background: white;
-    border: 1px solid var(--border-color);
-    border-radius: 0.5rem;
+    margin-top: 2rem;
     padding: 1rem;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    transition: transform var(--transition-speed);
-}
-
-.booking-summary.hidden {
-    transform: translateY(calc(100% - 40px));
-}
-
-.summary-title {
-    margin-top: 0;
-    margin-bottom: 1rem;
-}
-
-.summary-content {
-    margin-bottom: 1rem;
-}
-
-.toggle-summary {
-    width: 100%;
-    text-align: center;
+    background: #f8f8f8;
+    border-radius: 0.5rem;
 }
 
 /* WhatsApp Notice */
@@ -314,30 +217,91 @@ button:disabled {
     text-align: center;
 }
 
+/* Navigation Buttons */
+.step-navigation {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2rem;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Loading States */
+.loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 /* Language Switcher */
 .language-switcher {
     position: fixed;
     top: 1rem;
     right: 1rem;
     display: flex;
+    flex-direction: column;
     gap: 0.5rem;
     background: white;
-    padding: 0.5rem;
-    border-radius: 0.5rem;
+    padding: 0.3rem;
+    border-radius: 1rem;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     z-index: 1000;
+    font-size: 0.9rem;
 }
 
 .language-option {
-    padding: 0.5rem 1rem;
+    padding: 0.4rem 0.8rem;
     cursor: pointer;
-    border-radius: 0.25rem;
+    border-radius: 0.8rem;
     transition: all var(--transition-speed);
+    min-width: 80px;
+    text-align: center;
 }
 
 .language-option.active {
     background: var(--primary-color);
     color: white;
+}
+
+/* Service Description */
+.service-description {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.service-card.selected .service-description {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Category Button */
+.category-button {
+    width: 100%;
+    text-align: center;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
 }
 
 /* Responsive Design */
@@ -347,20 +311,52 @@ button:disabled {
         padding: 1rem;
     }
 
-    .categories-services-grid {
+    .logo-container {
+        max-width: 600px;
+    }
+    
+    .logo {
+        max-width: 600px;
+    }
+
+    .categories-grid,
+    .services-grid,
+    .barbers-grid {
         grid-template-columns: 1fr;
     }
 
-    .booking-summary {
-        width: calc(100% - 2rem);
-        left: 1rem;
-        right: 1rem;
+    .step-label {
+        font-size: 0.8rem;
+    }
+
+    .progress-bar {
+        overflow-x: auto;
+        padding-bottom: 1rem;
+    }
+
+    .progress-step {
+        min-width: 80px;
     }
 
     .language-switcher {
         top: 0.5rem;
         right: 0.5rem;
+        font-size: 0.8rem;
     }
+    
+    .language-option {
+        padding: 0.3rem 0.6rem;
+        min-width: 70px;
+    }
+}
+
+/* Date Time Picker Customization */
+.flatpickr-calendar {
+    font-family: 'Tajawal', Arial, sans-serif;
+}
+
+.flatpickr-current-month {
+    font-family: 'Tajawal', Arial, sans-serif;
 }
 
 /* Error States */
@@ -379,4 +375,86 @@ input:invalid {
     color: var(--success-color);
     font-size: 0.85rem;
     margin-top: 0.25rem;
+}
+
+/* New styles for added functionality */
+
+/* Category services toggle */
+.category-services {
+    display: none;
+    margin-top: 1rem;
+}
+
+.category-services.active {
+    display: block;
+}
+
+/* Summary box responsive design */
+@media (max-width: 600px) {
+    .booking-summary {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        max-height: 50vh;
+        overflow-y: auto;
+        transition: transform 0.3s ease-in-out;
+        background: var(--background-color);
+        border-top: 1px solid var(--border-color);
+        padding: 1rem;
+    }
+
+    .booking-summary.hidden {
+        transform: translateY(100%);
+    }
+
+    .toggle-summary {
+        display: block;
+        width: 100%;
+        padding: 0.75rem 1.5rem;
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: all var(--transition-speed);
+        font-family: inherit;
+        font-weight: bold;
+        margin-top: 1rem;
+    }
+
+    .toggle-summary:hover {
+        background: var(--hover-color);
+    }
+}
+
+/* RTL support */
+html[dir="rtl"] .language-switcher {
+    left: 1rem;
+    right: auto;
+}
+
+html[dir="rtl"] .step-navigation {
+    flex-direction: row-reverse;
+}
+
+/* Error and success messages */
+.error-message, .success-message {
+    padding: 0.5rem;
+    margin-top: 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.9rem;
+}
+
+.error-message {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: var(--error-color);
+    border: 1px solid var(--error-color);
+}
+
+.success-message {
+    background-color: rgba(40, 167, 69, 0.1);
+    color: var(--success-color);
+    border: 1px solid var(--success-color);
 }
