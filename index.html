@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ekka Barbershop - Book Appointment</title>
+    
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database-compat.js"></script>
+    
     <!-- Styles -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
@@ -29,23 +31,23 @@
         <div class="progress-bar">
             <div class="progress-step active" data-step="1">
                 <div class="step-number">1</div>
-                <div class="step-label" data-ar="الفئة" data-en="Category"></div>
+                <div class="step-label" data-ar="الفئة" data-en="Category">الفئة</div>
             </div>
             <div class="progress-step" data-step="2">
                 <div class="step-number">2</div>
-                <div class="step-label" data-ar="الخدمات" data-en="Services"></div>
+                <div class="step-label" data-ar="الخدمات" data-en="Services">الخدمات</div>
             </div>
             <div class="progress-step" data-step="3">
                 <div class="step-number">3</div>
-                <div class="step-label" data-ar="الموعد" data-en="Date & Time"></div>
+                <div class="step-label" data-ar="الموعد" data-en="Date & Time">الموعد</div>
             </div>
             <div class="progress-step" data-step="4">
                 <div class="step-number">4</div>
-                <div class="step-label" data-ar="الحلاق" data-en="Barber"></div>
+                <div class="step-label" data-ar="الحلاق" data-en="Barber">الحلاق</div>
             </div>
             <div class="progress-step" data-step="5">
                 <div class="step-number">5</div>
-                <div class="step-label" data-ar="التأكيد" data-en="Confirm"></div>
+                <div class="step-label" data-ar="التأكيد" data-en="Confirm">التأكيد</div>
             </div>
         </div>
 
@@ -53,20 +55,19 @@
         <div class="booking-steps">
             <!-- Step 1: Categories -->
             <div class="booking-step active" id="step-1">
-                <h2 class="step-title" data-ar="اختر الفئة" data-en="Choose Category"></h2>
+                <h2 class="step-title" data-ar="اختر الفئة" data-en="Choose Category">اختر الفئة</h2>
                 <div class="categories-grid"></div>
             </div>
 
             <!-- Step 2: Services -->
             <div class="booking-step" id="step-2">
-                <h2 class="step-title" data-ar="اختر الخدمات" data-en="Choose Services"></h2>
+                <h2 class="step-title" data-ar="اختر الخدمات" data-en="Choose Services">اختر الخدمات</h2>
                 <div class="services-grid"></div>
-                <button class="add-service-btn" data-ar="إضافة خدمة أخرى" data-en="Add Another Service">+</button>
             </div>
 
             <!-- Step 3: Date & Time -->
             <div class="booking-step" id="step-3">
-                <h2 class="step-title" data-ar="اختر الموعد" data-en="Choose Date & Time"></h2>
+                <h2 class="step-title" data-ar="اختر الموعد" data-en="Choose Date & Time">اختر الموعد</h2>
                 <div class="datetime-picker">
                     <input type="datetime-local" id="appointment-time">
                 </div>
@@ -74,21 +75,21 @@
 
             <!-- Step 4: Barber Selection -->
             <div class="booking-step" id="step-4">
-                <h2 class="step-title" data-ar="اختر الحلاق" data-en="Choose Barber"></h2>
+                <h2 class="step-title" data-ar="اختر الحلاق" data-en="Choose Barber">اختر الحلاق</h2>
                 <div class="barbers-grid"></div>
             </div>
 
             <!-- Step 5: Customer Details -->
             <div class="booking-step" id="step-5">
-                <h2 class="step-title" data-ar="أدخل بياناتك" data-en="Enter Your Details"></h2>
+                <h2 class="step-title" data-ar="أدخل بياناتك" data-en="Enter Your Details">أدخل بياناتك</h2>
                 <form id="booking-form">
                     <div class="form-group">
-                        <label for="name" data-ar="الاسم" data-en="Name"></label>
-                        <input type="text" id="name" required>
+                        <label for="customer-name" data-ar="الاسم" data-en="Name">الاسم</label>
+                        <input type="text" id="customer-name" required>
                     </div>
                     <div class="form-group">
-                        <label for="phone" data-ar="رقم الجوال" data-en="Phone"></label>
-                        <input type="tel" id="phone" pattern="05[0-9]{8}" required>
+                        <label for="customer-phone" data-ar="رقم الجوال" data-en="Phone">رقم الجوال</label>
+                        <input type="tel" id="customer-phone" pattern="05[0-9]{8}" required>
                     </div>
                 </form>
             </div>
@@ -102,22 +103,18 @@
 
         <!-- Booking Summary -->
         <div class="booking-summary">
-            <h3 class="summary-title" data-ar="ملخص الحجز" data-en="Booking Summary"></h3>
-            <div class="selected-services"></div>
-            <div class="total-duration"></div>
-            <div class="total-price"></div>
+            <h3 class="summary-title" data-ar="ملخص الحجز" data-en="Booking Summary">ملخص الحجز</h3>
+            <!-- The summary content will be updated via JavaScript -->
         </div>
 
         <!-- WhatsApp Notice -->
         <div class="whatsapp-notice">
-            <span data-ar="سيتم تأكيد حجزك على الواتساب" data-en="Your booking will be confirmed via WhatsApp"></span>
+            <span data-ar="سيتم تأكيد حجزك على الواتساب" data-en="Your booking will be confirmed via WhatsApp">سيتم تأكيد حجزك على الواتساب</span>
             📱 ✅
         </div>
     </div>
 
     <!-- Scripts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/l10n/ar.min.js"></script>
     <!-- Main Booking Script -->
     <script src="booking.js"></script>
 </body>
