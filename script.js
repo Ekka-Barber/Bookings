@@ -66,19 +66,12 @@ function initializeState() {
 
 // Setup Event Listeners
 function setupEventListeners() {
-    // Navigation buttons
     elements.prevButton?.addEventListener('click', handlePrevStep);
     elements.nextButton?.addEventListener('click', handleNextStep);
-
-    // Language switcher
     elements.languageOptions?.forEach(option => {
         option.addEventListener('click', () => switchLanguage(option.dataset.lang));
     });
-
-    // Form inputs
     elements.bookingForm?.addEventListener('input', handleFormInput);
-
-    // Toggle summary
     elements.toggleSummaryButton?.addEventListener('click', toggleSummary);
 }
 
@@ -100,19 +93,20 @@ function loadInitialData() {
 
 // Initialize Flatpickr
 function initializeFlatpickr() {
-    flatpickr.localize(flatpickr.l10ns.ar);
     flatpickr(elements.dateTimePicker, {
         enableTime: true,
         dateFormat: "Y-m-d H:i",
         minTime: "12:00",
-        maxTime: "23:45",
+        maxTime: "20:00",
         minuteIncrement: 15,
         disable: [
             function(date) {
                 return (date.getHours() < 12 || date.getHours() >= 20);
             }
         ],
-        locale: state.currentLanguage === 'ar' ? 'ar' : 'en',
+        locale: {
+            firstDayOfWeek: 0
+        },
         onChange: (selectedDates, dateStr) => {
             state.selectedDateTime = dateStr;
             loadAvailableBarbers(dateStr);
@@ -161,16 +155,16 @@ function toggleService(categoryId, serviceId, service) {
     } else {
         state.selectedServices.splice(index, 1);
     }
-    updateServiceSelection(serviceId);
+    updateServiceSelection();
     updateSummary();
 }
 
 // Update Service Selection UI
-function updateServiceSelection(serviceId) {
+function updateServiceSelection() {
     const serviceCards = document.querySelectorAll('.service-card');
     serviceCards.forEach(card => {
-        const cardServiceId = card.querySelector('h3').textContent;
-        if (state.selectedServices.some(s => s[`name_${state.currentLanguage}`] === cardServiceId)) {
+        const cardServiceName = card.querySelector('h3').textContent;
+        if (state.selectedServices.some(s => s[`name_${state.currentLanguage}`] === cardServiceName)) {
             card.classList.add('selected');
         } else {
             card.classList.remove('selected');
@@ -310,9 +304,10 @@ function formatDateTime(dateTime) {
         month: 'long', 
         day: 'numeric', 
         hour: '2-digit', 
-        minute: '2-digit'
+        minute: '2-digit',
+        hour12: true
     };
-    return date.toLocaleDateString(state.currentLanguage === 'ar' ? 'ar-SA' : 'en-US', options);
+    return date.toLocaleString(state.currentLanguage === 'ar' ? 'ar-SA' : 'en-US', options);
 }
 
 // Handle Previous Step
