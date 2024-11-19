@@ -1,3 +1,6 @@
+import { state } from './state.js';
+import { firebaseService } from './firebase-service.js';
+
 // ui-manager.js
 class UIManager {
 
