@@ -1,0 +1,283 @@
+:root {
+    --primary-color: #d4af37;
+    --primary-hover: #b8960c;
+    --secondary-color: #3c3c3c;
+    --text-color: #333333;
+    --text-light: #666666;
+    --background-color: #ffffff;
+    --border-color: #e0e0e0;
+    --error-color: #dc3545;
+    --success-color: #28a745;
+    --warning-color: #ffc107;
+    --info-color: #17a2b8;
+    
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+    
+    --radius-sm: 0.25rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 1rem;
+    
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    
+    --font-family: 'Tajawal', sans-serif;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    
+    --transition-fast: 150ms ease-in-out;
+    --transition-normal: 300ms ease-in-out;
+}
+
+/* Reset and base styles */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-family);
+    font-size: var(--font-size-base);
+    line-height: 1.5;
+    color: var(--text-color);
+    background-color: var(--background-color);
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-md);
+}
+
+/* Header styles */
+.site-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-lg);
+}
+
+.logo-container {
+    width: 100px;
+    height: auto;
+}
+
+.site-logo {
+    width: 100%;
+    height: auto;
+}
+
+.main-title {
+    font-size: var(--font-size-xl);
+    color: var(--primary-color);
+}
+
+/* Progress bar styles */
+.progress-bar {
+    margin-bottom: var(--spacing-lg);
+}
+
+.progress-steps {
+    display: flex;
+    justify-content: space-between;
+}
+
+.progress-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+}
+
+.step-circle {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: var(--border-color);
+    color: var(--text-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--spacing-xs);
+    transition: background-color var(--transition-normal);
+}
+
+.progress-step.active .step-circle,
+.progress-step.completed .step-circle {
+    background-color: var(--primary-color);
+    color: var(--background-color);
+}
+
+.progress-line {
+    height: 2px;
+    background-color: var(--border-color);
+    position: relative;
+    margin-bottom: var(--spacing-md);
+}
+
+.progress-line::before {
+    content: '';
+    position: absolute;
+    height: 100%;
+    background-color: var(--primary-color);
+    width: var(--progress, 0%);
+    transition: width var(--transition-normal);
+}
+
+/* Booking steps styles */
+.booking-step {
+    display: none;
+}
+
+.booking-step.active {
+    display: block;
+}
+
+/* Service grid styles */
+.categories-services-grid,
+.time-slots-grid,
+.barbers-grid {
+    display: grid;
+    gap: var(--spacing-md);
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+.service-card,
+.time-slot,
+.barber-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    transition: box-shadow var(--transition-fast);
+}
+
+.service-card:hover,
+.time-slot:hover,
+.barber-card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+/* Form styles */
+input[type="text"],
+input[type="tel"],
+button {
+    width: 100%;
+    padding: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: var(--font-size-base);
+}
+
+button {
+    background-color: var(--primary-color);
+    color: var(--background-color);
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+}
+
+button:hover {
+    background-color: var(--primary-hover);
+}
+
+/* Utility classes */
+.hidden {
+    display: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .progress-steps {
+        flex-direction: column;
+    }
+    
+    .progress-step {
+        flex-direction: row;
+        margin-bottom: var(--spacing-sm);
+    }
+    
+    .step-circle {
+        margin-right: var(--spacing-sm);
+        margin-bottom: 0;
+    }
+}
+
+/* Toast styles */
+.toast-container {
+    position: fixed;
+    top: var(--spacing-lg);
+    right: var(--spacing-lg);
+    z-index: 1000;
+}
+
+.toast {
+    background-color: var(--background-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    margin-bottom: var(--spacing-sm);
+    max-width: 300px;
+    opacity: 0;
+    padding: var(--spacing-md);
+    transform: translateY(-20px);
+    transition: opacity var(--transition-normal), transform var(--transition-normal);
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.toast-success { border-left: 4px solid var(--success-color); }
+.toast-error { border-left: 4px solid var(--error-color); }
+.toast-warning { border-left: 4px solid var(--warning-color); }
+.toast-info { border-left: 4px solid var(--info-color); }
+
+/* Loading overlay styles */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--transition-normal), visibility var(--transition-normal);
+}
+
+.loading-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.loader {
+    border: 4px solid var(--background-color);
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+    color: var(--background-color);
+    margin-top: var(--spacing-md);
+}
