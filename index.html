@@ -15,12 +15,12 @@
     <link rel="stylesheet" href="styles.css">
     
     <!-- Third Party CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/themes/material_blue.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.min.css">
     
     <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-database.js"></script>
 </head>
 <body>
     <!-- Language Switcher -->
@@ -63,233 +63,37 @@
                 </div>
             </div>
         </div>
-<!-- Booking Steps -->
+
+        <!-- Booking Steps -->
         <main class="booking-steps">
-            <!-- Step 1: Services Selection -->
-            <section id="step-1" class="booking-step active" aria-labelledby="services-title">
-                <h2 id="services-title" class="step-title" data-ar="اختر الخدمات" data-en="Choose Services">
-                    اختر الخدمات
-                </h2>
-                
+            <section id="step-1" class="booking-step active">
+                <h2>اختر الخدمات</h2>
                 <div class="categories-services-grid" role="list">
-                    <!-- Categories will be dynamically populated -->
-                    <template id="category-template">
-                        <div class="category">
-                            <div class="category-header">
-                                <span class="category-title"></span>
-                                <span class="category-toggle">+</span>
-                            </div>
-                            <div class="category-services">
-                                <!-- Services will be nested here -->
-                            </div>
-                        </div>
-                    </template>
-
-                    <!-- Service Card Template -->
-                    <template id="service-template">
-                        <div class="service-card" role="button" tabindex="0">
-                            <div class="service-name"></div>
-                            <div class="service-details"></div>
-                            <div class="service-duration"></div>
-                            <div class="service-price"></div>
-                            <div class="service-selected-icon">✓</div>
-                        </div>
-                    </template>
-                </div>
-            </section>
-
-            <!-- Step 2: Date & Time Selection -->
-            <section id="step-2" class="booking-step" aria-labelledby="datetime-title">
-                <h2 id="datetime-title" class="step-title" data-ar="اختر التاريخ والوقت" data-en="Choose Date and Time">
-                    اختر التاريخ والوقت
-                </h2>
-                
-                <div class="datetime-picker-wrapper">
-                    <div class="date-picker-container">
-                        <input type="text" id="appointment-date" 
-                               class="date-picker-input" 
-                               placeholder="اختر التاريخ" 
-                               data-placeholder-ar="اختر التاريخ"
-                               data-placeholder-en="Select date">
-                    </div>
-                    
-                    <div class="time-slots-container">
-                        <h3 class="time-slots-title" data-ar="الأوقات المتاحة" data-en="Available Times">
-                            الأوقات المتاحة
-                        </h3>
-                        <div class="time-slots-grid">
-                            <!-- Time slots will be dynamically populated -->
-                        </div>
+                    <!-- Dynamic Service Cards -->
+                    <div class="service-card" data-service-id="${serviceId}">
+                        <!-- Service Details Here -->
                     </div>
                 </div>
-            </section>
-
-            <!-- Step 3: Barber Selection -->
-            <section id="step-3" class="booking-step" aria-labelledby="barber-title">
-                <h2 id="barber-title" class="step-title" data-ar="اختر الحلاق" data-en="Choose Barber">
-                    اختر الحلاق
-                </h2>
-                
-                <div class="barbers-grid" role="list">
-                    <!-- Barbers will be dynamically populated -->
-                    <template id="barber-template">
-                        <div class="barber-card" role="button" tabindex="0">
-                            <div class="barber-avatar">
-                                <span class="barber-initials"></span>
-                            </div>
-                            <div class="barber-name"></div>
-                            <div class="barber-schedule"></div>
-                            <div class="barber-selected-icon">✓</div>
-                        </div>
-                    </template>
-                </div>
-            </section>
-
-            <!-- Step 4: Confirmation -->
-            <section id="step-4" class="booking-step" aria-labelledby="confirmation-title">
-                <h2 id="confirmation-title" class="step-title" data-ar="تأكيد الحجز" data-en="Confirm Booking">
-                    تأكيد الحجز
-                </h2>
-                
-                <form id="booking-form" class="booking-form" novalidate>
-                    <div class="form-group">
-                        <label for="customer-name" class="form-label">
-                            <span data-ar="الاسم" data-en="Name">الاسم</span>
-                            <span class="required-asterisk">*</span>
-                        </label>
-                        <input type="text" id="customer-name" class="form-input" required
-                               minlength="3" maxlength="50"
-                               data-placeholder-ar="أدخل اسمك الكامل"
-                               data-placeholder-en="Enter your full name">
-                        <div class="error-message" aria-live="polite"></div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="customer-phone" class="form-label">
-                            <span data-ar="رقم الجوال" data-en="Phone Number">رقم الجوال</span>
-                            <span class="required-asterisk">*</span>
-                        </label>
-                        <input type="tel" id="customer-phone" class="form-input" required
-                               pattern="05[0-9]{8}"
-                               data-placeholder-ar="05xxxxxxxx"
-                               data-placeholder-en="05xxxxxxxx">
-                        <div class="error-message" aria-live="polite"></div>
-                    </div>
-                </form>
             </section>
         </main>
 
-        <!-- Navigation Buttons -->
-        <div class="navigation-buttons">
-            <button type="button" class="nav-button prev-btn" disabled
-                    data-ar="السابق" data-en="Previous">
-                السابق
-            </button>
-            <button type="button" class="nav-button next-btn" disabled
-                    data-ar="التالي" data-en="Next">
-                التالي
-            </button>
-        </div>
-<!-- Booking Summary -->
-        <aside class="booking-summary" aria-label="booking summary">
-            <div class="summary-header">
-                <h3 class="summary-title" data-ar="ملخص الحجز" data-en="Booking Summary">
-                    ملخص الحجز
-                </h3>
-                <button type="button" class="toggle-summary" aria-expanded="true">
-                    <span data-ar="إخفاء الملخص" data-en="Hide Summary">إخفاء الملخص</span>
-                </button>
-            </div>
-            
-            <div class="summary-content">
-                <!-- Services Summary -->
-                <div class="summary-section services-summary">
-                    <h4 class="summary-section-title" data-ar="الخدمات المختارة" data-en="Selected Services">
-                        الخدمات المختارة
-                    </h4>
-                    <div class="summary-services">
-                        <!-- Services will be dynamically populated -->
-                    </div>
-                </div>
-
-                <!-- DateTime Summary -->
-                <div class="summary-section datetime-summary">
-                    <h4 class="summary-section-title" data-ar="موعد الحجز" data-en="Appointment Time">
-                        موعد الحجز
-                    </h4>
-                    <div class="summary-datetime"></div>
-                </div>
-
-                <!-- Barber Summary -->
-                <div class="summary-section barber-summary">
-                    <h4 class="summary-section-title" data-ar="الحلاق المختار" data-en="Selected Barber">
-                        الحلاق المختار
-                    </h4>
-                    <div class="summary-barber"></div>
-                </div>
-
-                <!-- Total Section -->
-                <div class="summary-total">
-                    <div class="total-row">
-                        <span data-ar="المجموع" data-en="Total">المجموع</span>
-                        <span class="total-amount"></span>
-                    </div>
-                </div>
-            </div>
-        </aside>
-
-        <!-- Notifications -->
+        <!-- Toast Container -->
         <div class="toast-container" role="alert" aria-live="polite"></div>
 
         <!-- Loading Overlay -->
         <div class="loading-overlay" aria-hidden="true">
             <div class="loader" role="progressbar"></div>
-            <div class="loading-text" data-ar="جاري التحميل..." data-en="Loading...">
-                جاري التحميل...
-            </div>
+            <div class="loading-text">جاري التحميل...</div>
         </div>
     </div>
 
-    <!-- Templates for Dynamic Content -->
-    <template id="toast-template">
-        <div class="toast" role="alert">
-            <div class="toast-content">
-                <div class="toast-message"></div>
-                <button type="button" class="toast-close" aria-label="Close">×</button>
-            </div>
-            <div class="toast-progress"></div>
-        </div>
-    </template>
-
-    <template id="time-slot-template">
-        <button type="button" class="time-slot">
-            <span class="time-display"></span>
-        </button>
-    </template>
+    <!-- Import Main Script -->
+    <script type="module">
+        import BookingApplication from './js/main.js';
+    </script>
 
     <!-- Scripts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/l10n/ar.js"></script>
-    <script src="config.js"></script>
-    <script src="state.js"></script>
-    <script src="utils.js"></script>
-    <script src="firebase-service.js"></script>
-    <script src="booking-manager.js"></script>
-    <script src="app.js"></script>
-
-    <!-- Service Worker Registration -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(registration => {
-                        console.log('ServiceWorker registration successful');
-                    })
-                    .catch(err => {
-                        console.error('ServiceWorker registration failed:', err);
-                    });
-            });
-        }
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ar.js"></script>
 </body>
 </html>
