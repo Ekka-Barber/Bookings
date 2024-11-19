@@ -195,6 +195,13 @@ body {
 .logo-container {
     margin-bottom: var(--spacing-lg);
     transition: transform var(--transition-base);
+    width: 200px;
+    height: 80px;
+    margin: 0 auto;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .logo-container:hover {
@@ -202,13 +209,20 @@ body {
 }
 
 .site-logo {
-    max-width: 200px;
-    height: auto;
+    max-width: 100%;
+    height: 100%;
+    object-fit: contain;
     display: block;
     margin: 0 auto;
-    object-fit: contain;
+    transition: opacity var(--transition-base);
 }
 
+/* RTL Logo Handling */
+[dir="rtl"] .site-logo {
+    transform: scaleX(-1); /* Remove this line if you have a separate RTL logo */
+}
+
+/* Main Title */
 .main-title {
     color: var(--secondary-color);
     font-size: var(--font-size-2xl);
@@ -217,7 +231,25 @@ body {
     font-weight: 700;
 }
 
-/* Language Switcher */
+/* Responsive Logo */
+@media (max-width: 768px) {
+    .logo-container {
+        width: 150px;
+        height: 60px;
+    }
+
+    .main-title {
+        font-size: var(--font-size-xl);
+    }
+}
+
+/* High Contrast Support */
+@media (prefers-contrast: high) {
+    .site-logo {
+        outline: 2px solid var(--secondary-color);
+        outline-offset: 2px;
+    }
+}/* Language Switcher */
 .language-switcher {
     position: fixed;
     top: var(--spacing-md);
