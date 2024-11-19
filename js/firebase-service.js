@@ -40,7 +40,37 @@ class FirebaseService {
     }
 
 
+
+    // Initialize Firebase
     async initializeFirebase() {
+        try {
+            // Load Firebase modules
+            const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.2/firebase-app.js');
+            const { getDatabase } = await import('https://www.gstatic.com/firebasejs/10.7.2/firebase-database.js');
+
+            // Firebase configuration
+            const firebaseConfig = {
+                apiKey: "AIzaSyA0Syrv4XH88PTzQUaZlZMJ_85n8",
+                authDomain: "ekka-barbershop.firebaseapp.com",
+                databaseURL: "https://ekka-barbershop-default-rtdb.europe-west1.firebasedatabase.app",
+                projectId: "ekka-barbershop",
+                storageBucket: "ekka-barbershop.firebasestorage.app",
+                messagingSenderId: "726879506857",
+                appId: "1:726879506857:web:497e0576037a3bcf8d74b8"
+            };
+
+            // Initialize Firebase
+            const app = initializeApp(firebaseConfig);
+            this.db = getDatabase(app);
+
+            await this.testConnection();
+            this.setupConnectionMonitoring();
+            console.log('Firebase initialized successfully');
+        } catch (error) {
+            console.error('Firebase initialization failed:', error);
+            throw new Error('Failed to initialize Firebase');
+        }
+    }
         try {
             // Use the imported Firebase functions
             if (!window.firebase?.apps?.length) {
