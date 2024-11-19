@@ -11,8 +11,18 @@
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     
-    <!-- Styles -->
-    <link rel="stylesheet" href="styles.css">
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="/ekka-booking/css/styles.css">
+    <link rel="stylesheet" href="/ekka-booking/css/custom.css">
+    
+    <!-- JavaScript Modules -->
+    <script type="module">
+        import { firebaseService } from '/ekka-booking/js/firebase-service.js';
+        import { state } from '/ekka-booking/js/state.js';
+        import { uiManager } from '/ekka-booking/js/ui-manager.js';
+        import { bookingManager } from '/ekka-booking/js/booking-manager.js';
+        import BookingApplication from '/ekka-booking/js/main.js';
+    </script>
     
     <!-- Third Party CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -35,7 +45,7 @@
         <header class="site-header">
             <div class="logo-container">
                 <!-- Update logo source and provide both RTL/LTR versions -->
-                <img src="assets/images/logo.png" 
+                <img src="/ekka-booking/assets/images/logo.png" 
                      alt="Ekka Barbershop" 
                      class="site-logo"
                      data-logo-ltr="assets/images/logo.png"
