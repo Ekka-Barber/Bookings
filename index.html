@@ -3,50 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="احجز موعدك في إيكا باربرشوب بسهولة وسرعة">
-    <title>إيكا باربرشوب - حجز موعد</title>
+    <title>صالون إكه للحلاقة | Ekka Barbershop</title>
     
     <!-- Favicon -->
-    <link rel="icon" href="assets/images/favicon.ico" type="image/x-icon">
-    <link rel="apple-touch-icon" href="assets/images/apple-touch-icon.png">
+    <link rel="icon" type="image/png" href="favicon.png">
     
     <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     
     <!-- Styles -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="styles.css">
+    
+    <!-- Third Party CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/themes/material_blue.min.css">
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 </head>
 <body>
     <!-- Language Switcher -->
-    <nav class="language-switcher" role="navigation" aria-label="Language selection">
-        <button class="language-option active" data-lang="ar" aria-pressed="true">عربي</button>
-        <button class="language-option" data-lang="en" aria-pressed="false">English</button>
-    </nav>
+    <div class="language-switcher">
+        <button type="button" class="language-option" data-lang="ar">عربي</button>
+        <button type="button" class="language-option" data-lang="en">English</button>
+    </div>
 
+    <!-- Main Container -->
     <div class="container">
-        <!-- Header Section -->
+        <!-- Header -->
         <header class="site-header">
             <div class="logo-container">
-                <img 
-                    src="logo.png" 
-                    alt="إيكا باربرشوب" 
-                    class="site-logo"
-                    data-alt-ar="إيكا باربرشوب"
-                    data-alt-en="Ekka Barbershop"
-                    width="200"
-                    height="80"
-                >
+                <img src="logo.png" alt="Ekka Barbershop" class="site-logo" width="200" height="80">
             </div>
-            <h1 class="main-title" data-ar="حجز موعد في صالون إكه" data-en="Ekka Barbershop - Book Appointment">
+            <h1 class="main-title" data-ar="حجز موعد في صالون إكه" data-en="Book Appointment at Ekka Barbershop">
                 حجز موعد في صالون إكه
             </h1>
         </header>
 
         <!-- Progress Bar -->
-        <nav class="progress-bar" aria-label="Booking progress">
+        <div class="progress-bar" data-current-step="1">
             <div class="progress-line"></div>
             <div class="progress-steps">
                 <div class="progress-step active" data-step="1">
@@ -66,34 +62,65 @@
                     <div class="step-label" data-ar="التأكيد" data-en="Confirmation">التأكيد</div>
                 </div>
             </div>
-        </nav>
-
-        <!-- Main Content -->
+        </div>
+<!-- Booking Steps -->
         <main class="booking-steps">
-            <!-- Step 1: Services -->
+            <!-- Step 1: Services Selection -->
             <section id="step-1" class="booking-step active" aria-labelledby="services-title">
                 <h2 id="services-title" class="step-title" data-ar="اختر الخدمات" data-en="Choose Services">
                     اختر الخدمات
                 </h2>
-                <div class="categories-services-grid" role="list"></div>
+                
+                <div class="categories-services-grid" role="list">
+                    <!-- Categories will be dynamically populated -->
+                    <template id="category-template">
+                        <div class="category">
+                            <div class="category-header">
+                                <span class="category-title"></span>
+                                <span class="category-toggle">+</span>
+                            </div>
+                            <div class="category-services">
+                                <!-- Services will be nested here -->
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Service Card Template -->
+                    <template id="service-template">
+                        <div class="service-card" role="button" tabindex="0">
+                            <div class="service-name"></div>
+                            <div class="service-details"></div>
+                            <div class="service-duration"></div>
+                            <div class="service-price"></div>
+                            <div class="service-selected-icon">✓</div>
+                        </div>
+                    </template>
+                </div>
             </section>
 
-            <!-- Step 2: Date and Time -->
+            <!-- Step 2: Date & Time Selection -->
             <section id="step-2" class="booking-step" aria-labelledby="datetime-title">
                 <h2 id="datetime-title" class="step-title" data-ar="اختر التاريخ والوقت" data-en="Choose Date and Time">
                     اختر التاريخ والوقت
                 </h2>
+                
                 <div class="datetime-picker-wrapper">
-                    <input 
-                        type="text" 
-                        id="appointment-time" 
-                        class="datetime-picker"
-                        aria-label="اختر التاريخ والوقت"
-                        placeholder="اختر التاريخ والوقت"
-                        readonly
-                        data-placeholder-ar="اختر التاريخ والوقت"
-                        data-placeholder-en="Select date and time"
-                    >
+                    <div class="date-picker-container">
+                        <input type="text" id="appointment-date" 
+                               class="date-picker-input" 
+                               placeholder="اختر التاريخ" 
+                               data-placeholder-ar="اختر التاريخ"
+                               data-placeholder-en="Select date">
+                    </div>
+                    
+                    <div class="time-slots-container">
+                        <h3 class="time-slots-title" data-ar="الأوقات المتاحة" data-en="Available Times">
+                            الأوقات المتاحة
+                        </h3>
+                        <div class="time-slots-grid">
+                            <!-- Time slots will be dynamically populated -->
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -102,7 +129,20 @@
                 <h2 id="barber-title" class="step-title" data-ar="اختر الحلاق" data-en="Choose Barber">
                     اختر الحلاق
                 </h2>
-                <div class="barbers-grid" role="list"></div>
+                
+                <div class="barbers-grid" role="list">
+                    <!-- Barbers will be dynamically populated -->
+                    <template id="barber-template">
+                        <div class="barber-card" role="button" tabindex="0">
+                            <div class="barber-avatar">
+                                <span class="barber-initials"></span>
+                            </div>
+                            <div class="barber-name"></div>
+                            <div class="barber-schedule"></div>
+                            <div class="barber-selected-icon">✓</div>
+                        </div>
+                    </template>
+                </div>
             </section>
 
             <!-- Step 4: Confirmation -->
@@ -110,22 +150,17 @@
                 <h2 id="confirmation-title" class="step-title" data-ar="تأكيد الحجز" data-en="Confirm Booking">
                     تأكيد الحجز
                 </h2>
+                
                 <form id="booking-form" class="booking-form" novalidate>
                     <div class="form-group">
                         <label for="customer-name" class="form-label">
                             <span data-ar="الاسم" data-en="Name">الاسم</span>
                             <span class="required-asterisk">*</span>
                         </label>
-                        <input 
-                            type="text" 
-                            id="customer-name" 
-                            name="customerName" 
-                            class="form-input"
-                            required 
-                            autocomplete="name"
-                            data-placeholder-ar="أدخل اسمك"
-                            data-placeholder-en="Enter your name"
-                        >
+                        <input type="text" id="customer-name" class="form-input" required
+                               minlength="3" maxlength="50"
+                               data-placeholder-ar="أدخل اسمك الكامل"
+                               data-placeholder-en="Enter your full name">
                         <div class="error-message" aria-live="polite"></div>
                     </div>
 
@@ -134,67 +169,127 @@
                             <span data-ar="رقم الجوال" data-en="Phone Number">رقم الجوال</span>
                             <span class="required-asterisk">*</span>
                         </label>
-                        <input 
-                            type="tel" 
-                            id="customer-phone" 
-                            name="customerPhone" 
-                            class="form-input"
-                            required 
-                            pattern="05[0-9]{8}"
-                            autocomplete="tel"
-                            data-placeholder-ar="05xxxxxxxx"
-                            data-placeholder-en="05xxxxxxxx"
-                            dir="ltr"
-                        >
+                        <input type="tel" id="customer-phone" class="form-input" required
+                               pattern="05[0-9]{8}"
+                               data-placeholder-ar="05xxxxxxxx"
+                               data-placeholder-en="05xxxxxxxx">
                         <div class="error-message" aria-live="polite"></div>
                     </div>
                 </form>
             </section>
         </main>
 
-        <!-- Booking Summary -->
-        <aside class="booking-summary" aria-label="ملخص الحجز">
+        <!-- Navigation Buttons -->
+        <div class="navigation-buttons">
+            <button type="button" class="nav-button prev-btn" disabled
+                    data-ar="السابق" data-en="Previous">
+                السابق
+            </button>
+            <button type="button" class="nav-button next-btn" disabled
+                    data-ar="التالي" data-en="Next">
+                التالي
+            </button>
+        </div>
+<!-- Booking Summary -->
+        <aside class="booking-summary" aria-label="booking summary">
             <div class="summary-header">
-                <h3 class="summary-title" data-ar="ملخص الحجز" data-en="Booking Summary">ملخص الحجز</h3>
+                <h3 class="summary-title" data-ar="ملخص الحجز" data-en="Booking Summary">
+                    ملخص الحجز
+                </h3>
                 <button type="button" class="toggle-summary" aria-expanded="true">
                     <span data-ar="إخفاء الملخص" data-en="Hide Summary">إخفاء الملخص</span>
                 </button>
             </div>
-            <div class="summary-content"></div>
+            
+            <div class="summary-content">
+                <!-- Services Summary -->
+                <div class="summary-section services-summary">
+                    <h4 class="summary-section-title" data-ar="الخدمات المختارة" data-en="Selected Services">
+                        الخدمات المختارة
+                    </h4>
+                    <div class="summary-services">
+                        <!-- Services will be dynamically populated -->
+                    </div>
+                </div>
+
+                <!-- DateTime Summary -->
+                <div class="summary-section datetime-summary">
+                    <h4 class="summary-section-title" data-ar="موعد الحجز" data-en="Appointment Time">
+                        موعد الحجز
+                    </h4>
+                    <div class="summary-datetime"></div>
+                </div>
+
+                <!-- Barber Summary -->
+                <div class="summary-section barber-summary">
+                    <h4 class="summary-section-title" data-ar="الحلاق المختار" data-en="Selected Barber">
+                        الحلاق المختار
+                    </h4>
+                    <div class="summary-barber"></div>
+                </div>
+
+                <!-- Total Section -->
+                <div class="summary-total">
+                    <div class="total-row">
+                        <span data-ar="المجموع" data-en="Total">المجموع</span>
+                        <span class="total-amount"></span>
+                    </div>
+                </div>
+            </div>
         </aside>
 
-        <!-- Navigation Buttons -->
-        <div class="navigation-buttons">
-            <button 
-                type="button" 
-                class="nav-button prev-btn" 
-                disabled 
-                data-ar="السابق" 
-                data-en="Previous"
-            >السابق</button>
-            <button 
-                type="button" 
-                class="nav-button next-btn primary-btn" 
-                data-ar="التالي" 
-                data-en="Next"
-            >التالي</button>
+        <!-- Notifications -->
+        <div class="toast-container" role="alert" aria-live="polite"></div>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" aria-hidden="true">
+            <div class="loader" role="progressbar"></div>
+            <div class="loading-text" data-ar="جاري التحميل..." data-en="Loading...">
+                جاري التحميل...
+            </div>
         </div>
     </div>
 
-    <!-- Toast Messages Container -->
-    <div class="toast-container" aria-live="polite"></div>
+    <!-- Templates for Dynamic Content -->
+    <template id="toast-template">
+        <div class="toast" role="alert">
+            <div class="toast-content">
+                <div class="toast-message"></div>
+                <button type="button" class="toast-close" aria-label="Close">×</button>
+            </div>
+            <div class="toast-progress"></div>
+        </div>
+    </template>
 
-    <!-- Loading Overlay -->
-    <div class="loading-overlay" aria-hidden="true">
-        <div class="loader"></div>
-        <p class="loading-text" data-ar="جاري التحميل..." data-en="Loading...">جاري التحميل...</p>
-    </div>
+    <template id="time-slot-template">
+        <button type="button" class="time-slot">
+            <span class="time-display"></span>
+        </button>
+    </template>
 
     <!-- Scripts -->
-    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-database-compat.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://npmcdn.com/flatpickr/dist/l10n/ar.js"></script>
-    <script src="js/main.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/l10n/ar.js"></script>
+    <script src="config.js"></script>
+    <script src="state.js"></script>
+    <script src="utils.js"></script>
+    <script src="firebase-service.js"></script>
+    <script src="booking-manager.js"></script>
+    <script src="app.js"></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful');
+                    })
+                    .catch(err => {
+                        console.error('ServiceWorker registration failed:', err);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>
