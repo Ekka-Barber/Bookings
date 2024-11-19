@@ -1,5 +1,5 @@
 // config.js
-const config = {
+const CONFIG = {
     firebase: {
         apiKey: "AIzaSyA0Syrv4XH88PTzQUaZlZMJ_85n8",
         authDomain: "ekka-barbershop.firebaseapp.com",
@@ -7,58 +7,197 @@ const config = {
         projectId: "ekka-barbershop",
         storageBucket: "ekka-barbershop.firebasestorage.app",
         messagingSenderId: "726879506857",
-        appId: "1:726879506857:web:497e0576037a3bcf8d74b8",
-        measurementId: "G-56KKZKQ6TK"
+        appId: "1:726879506857:web:497e0576037a3bcf8d74b8"
     },
-    
     business: {
         workingHours: {
-            start: "12:00",
+            start: "08:00",
             end: "23:59"
         },
-        appointmentDuration: 30, // minutes
-        phoneNumber: "966599791440", // WhatsApp number
-        maxServicesPerBooking: 5,
-        timeSlotInterval: 30, // minutes
-        bufferTime: 15, // minutes between appointments
+        appointmentDuration: 30,
+        timeSlotInterval: 30,
+        bufferTime: 15,
+        maxServicesPerBooking: 5
     },
-    
-    dateFormat: {
-        display: {
-            ar: {
-                datetime: "DD/MM/YYYY hh:mm A",
-                date: "DD/MM/YYYY",
-                time: "hh:mm A"
-            },
-            en: {
-                datetime: "MM/DD/YYYY hh:mm A",
-                date: "MM/DD/YYYY",
-                time: "hh:mm A"
-            }
-        },
-        server: "YYYY-MM-DD HH:mm"
-    },
-
-    // Cache durations
     cache: {
-        categories: 5 * 60 * 1000, // 5 minutes
-        barbers: 2 * 60 * 1000,    // 2 minutes
-        availability: 1 * 60 * 1000 // 1 minute
+        duration: {
+            categories: 5 * 60 * 1000,  // 5 minutes
+            barbers: 2 * 60 * 1000,     // 2 minutes
+            availability: 1 * 60 * 1000  // 1 minute
+        }
     }
 };
 
+// FirebaseService.js
+class FirebaseService {
+    constructor() {
+        this.initializeFirebase();
+        this.db = null;
+        this.activeSubscriptions = new Map();
+        this.retryAttempts = 3;
+        this.retryDelay = 1000;
+        this.cache = new Map();
+    }
+
+    async initializeFirebase() {
+        try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(CONFIG.firebase);
+            }
+            this.db = firebase.database();
+            await this.testConnection();
+            this.setupConnectionMonitoring();
+        } catch (error) {
+            console.error('Firebase initialization failed:', error);
+            throw new Error('Failed to initialize Firebase');
+        }
+    }
+
+    async testConnection() {
+        let attempts = 0;
+        while (attempts < this.retryAttempts) {
+            try {
+                await this.db.ref('.info/connected').once('value');
+                return true;
+            } catch (error) {
+                attempts++;
+                if (attempts === this.retryAttempts) throw error;
+                await new Promise(resolve => setTimeout(resolve, this.retryDelay * attempts));
+            }
+        }
+    }
+
+    setupConnectionMonitoring() {
+        this.db.ref('.info/connected').on('value', (snapshot) => {
+            const isConnected = snapshot.val() === true;
+            document.dispatchEvent(new CustomEvent('connection-status', {
+                detail: { 
+                    status: isConnected ? 'connected' : 'disconnected',
+                    message: isConnected ? 'Connection restored' : 'Connection lost. Retrying...'
+                }
+            }));
+        });
+    }
+
+    async fetchWithCache(path, duration) {
+        const cacheKey = `${path}_${duration}`;
+        const cached = this.cache.get(cacheKey);
+        
+        if (cached && (Date.now() - cached.timestamp < duration)) {
+            return cached.data;
+        }
+
+        try {
+            const snapshot = await this.db.ref(path).once('value');
+            const data = snapshot.val();
+            
+            this.cache.set(cacheKey, {
+                data,
+                timestamp: Date.now()
+            });
+            
+            return data;
+        } catch (error) {
+            console.error(`Error fetching ${path}:`, error);
+            throw error;
+        }
+    }
+
+    async getCategories() {
+        return this.fetchWithCache('categories', CONFIG.cache.duration.categories);
+    }
+
+    async getBarbers() {
+        const barbers = await this.fetchWithCache('barbers', CONFIG.cache.duration.barbers);
+        return Object.entries(barbers)
+            .filter(([_, barber]) => barber.active)
+            .reduce((acc, [id, barber]) => ({...acc, [id]: barber}), {});
+    }
+
+    subscribeToBarberAvailability(barberId, date, callback) {
+        const dateStr = new Date(date).toISOString().split('T')[0];
+        const subscriptionKey = `availability_${barberId}_${dateStr}`;
+
+        // Cleanup existing subscription
+        this.unsubscribe(subscriptionKey);
+
+        const subscription = this.db.ref('bookings')
+            .orderByChild('barberId')
+            .equalTo(barberId)
+            .on('value', snapshot => {
+                const bookings = snapshot.val() || {};
+                const unavailableTimes = this.processBookingsForAvailability(bookings, dateStr);
+                callback(unavailableTimes);
+            });
+
+        this.activeSubscriptions.set(subscriptionKey, {
+            ref: this.db.ref('bookings'),
+            callback: subscription
+        });
+
+        return () => this.unsubscribe(subscriptionKey);
+    }
+
+    processBookingsForAvailability(bookings, dateStr) {
+        return Object.values(bookings)
+            .filter(booking => {
+                const bookingDate = new Date(booking.dateTime).toISOString().split('T')[0];
+                return bookingDate === dateStr && booking.status !== 'cancelled';
+            })
+            .map(booking => ({
+                start: new Date(booking.dateTime).getTime(),
+                end: new Date(booking.dateTime).getTime() + 
+                     (booking.duration * 60 * 1000) + 
+                     (CONFIG.business.bufferTime * 60 * 1000)
+            }));
+    }
+
+    async createBooking(bookingData) {
+        try {
+            const newBookingRef = await this.db.ref('bookings').push({
+                ...bookingData,
+                status: 'pending',
+                createdAt: firebase.database.ServerValue.TIMESTAMP
+            });
+            return newBookingRef.key;
+        } catch (error) {
+            console.error('Error creating booking:', error);
+            throw error;
+        }
+    }
+
+    unsubscribe(key) {
+        const subscription = this.activeSubscriptions.get(key);
+        if (subscription) {
+            subscription.ref.off('value', subscription.callback);
+            this.activeSubscriptions.delete(key);
+        }
+    }
+
+    cleanup() {
+        this.activeSubscriptions.forEach((_, key) => this.unsubscribe(key));
+        this.activeSubscriptions.clear();
+        this.db?.ref('.info/connected').off();
+        this.cache.clear();
+    }
+}
+
+export const firebaseService = new FirebaseService();
+export const config = CONFIG;
 // state.js
 class BookingState {
     constructor() {
         // Core state
         this.currentStep = 1;
         this.maxSteps = 4;
-        this.currentLanguage = this.getInitialLanguage();
+        this.language = this.getInitialLanguage();
         this.loading = false;
         this.error = null;
 
         // Selection state
         this.selectedServices = new Map();
+        this.selectedDate = null;
+        this.selectedTime = null;
         this.selectedDateTime = null;
         this.selectedBarber = null;
         this.customerDetails = {
@@ -66,12 +205,10 @@ class BookingState {
             phone: ''
         };
 
-        // Data state
+        // Cache and data state
         this.categories = new Map();
         this.barbers = new Map();
         this.availableTimeSlots = [];
-
-        // Cache state
         this.cache = {
             categories: null,
             barbers: null,
@@ -83,64 +220,128 @@ class BookingState {
 
         // Observer pattern
         this.observers = new Set();
-        
-        // Initialize state from localStorage if available
-        this.loadPersistedState();
+        this.initialize();
     }
 
-    // Language Management
+    // Initialization
+    initialize() {
+        this.loadPersistedState();
+        this.setupLanguageObserver();
+        this.initializeDirectionality();
+    }
+
     getInitialLanguage() {
         const saved = localStorage.getItem('preferred_language');
         const browser = navigator.language.startsWith('ar') ? 'ar' : 'en';
         return saved || browser;
     }
 
-    setLanguage(lang) {
-        if (lang !== this.currentLanguage && (lang === 'ar' || lang === 'en')) {
-            this.currentLanguage = lang;
-            localStorage.setItem('preferred_language', lang);
-            document.documentElement.lang = lang;
-            document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
-            this.notifyObservers();
-        }
+    setupLanguageObserver() {
+        const observer = new MutationObserver(() => {
+            const htmlLang = document.documentElement.lang;
+            if (htmlLang && htmlLang !== this.language) {
+                this.setLanguage(htmlLang);
+            }
+        });
+
+        observer.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['lang']
+        });
     }
 
-    // State Management
-    setState(updates) {
+    initializeDirectionality() {
+        document.documentElement.dir = this.language === 'ar' ? 'rtl' : 'ltr';
+        document.documentElement.lang = this.language;
+    }
+
+    // State Management Methods
+    setState(updates, notify = true) {
         let hasChanges = false;
-        for (const [key, value] of Object.entries(updates)) {
+        
+        Object.entries(updates).forEach(([key, value]) => {
             if (this[key] !== value) {
                 this[key] = value;
                 hasChanges = true;
             }
-        }
-        if (hasChanges) {
+        });
+
+        if (hasChanges && notify) {
             this.persistState();
             this.notifyObservers();
         }
     }
 
-    // Observer Pattern
-    subscribe(observer) {
-        this.observers.add(observer);
-        return () => this.observers.delete(observer);
-    }
-
-    notifyObservers() {
-        for (const observer of this.observers) {
-            observer(this);
+    setLanguage(lang) {
+        if (lang !== this.language && (lang === 'ar' || lang === 'en')) {
+            this.setState({ language: lang });
+            localStorage.setItem('preferred_language', lang);
+            this.initializeDirectionality();
         }
     }
 
-    // Navigation
+    // Service Selection Methods
+    toggleService(serviceId, serviceData) {
+        const updatedServices = new Map(this.selectedServices);
+        
+        if (updatedServices.has(serviceId)) {
+            updatedServices.delete(serviceId);
+        } else {
+            if (updatedServices.size >= CONFIG.business.maxServicesPerBooking) {
+                throw new Error(
+                    this.language === 'ar' 
+                        ? `لا يمكن اختيار أكثر من ${CONFIG.business.maxServicesPerBooking} خدمات`
+                        : `Cannot select more than ${CONFIG.business.maxServicesPerBooking} services`
+                );
+            }
+            updatedServices.set(serviceId, serviceData);
+        }
+        
+        this.setState({
+            selectedServices: updatedServices,
+            selectedDateTime: null,
+            selectedBarber: null
+        });
+    }
+
+    // Date/Time Selection Methods
+    setSelectedDate(date) {
+        this.setState({
+            selectedDate: date,
+            selectedTime: null,
+            selectedDateTime: null,
+            selectedBarber: null
+        });
+    }
+
+    setSelectedTime(time) {
+        if (!this.selectedDate) return;
+        
+        const dateTime = new Date(`${this.selectedDate}T${time}`);
+        this.setState({
+            selectedTime: time,
+            selectedDateTime: dateTime.toISOString(),
+            selectedBarber: null
+        });
+    }
+
+    // Barber Selection Methods
+    setSelectedBarber(barberId) {
+        const barber = this.barbers.get(barberId);
+        if (!barber) {
+            throw new Error('Invalid barber selection');
+        }
+        this.setState({ selectedBarber: { id: barberId, ...barber } });
+    }
+
+    // Navigation Methods
     canGoNext() {
         switch (this.currentStep) {
             case 1:
                 return this.selectedServices.size > 0 && 
-                       this.selectedServices.size <= config.business.maxServicesPerBooking;
+                       this.selectedServices.size <= CONFIG.business.maxServicesPerBooking;
             case 2:
-                return this.selectedDateTime !== null && 
-                       this.validateDateTime(this.selectedDateTime);
+                return this.selectedDateTime !== null;
             case 3:
                 return this.selectedBarber !== null;
             case 4:
@@ -155,75 +356,77 @@ class BookingState {
     }
 
     async goToNextStep() {
-        if (this.canGoNext() && this.currentStep < this.maxSteps) {
-            try {
-                this.setState({ loading: true });
-                
-                // Pre-load data for next step
-                switch (this.currentStep) {
-                    case 1:
-                        await this.preloadTimeSlots();
-                        break;
-                    case 2:
-                        await this.preloadBarbers();
-                        break;
-                }
+        if (!this.canGoNext() || this.currentStep >= this.maxSteps) return false;
 
-                this.setState({ 
-                    currentStep: this.currentStep + 1,
-                    loading: false 
-                });
-                return true;
-            } catch (error) {
-                this.setState({ 
-                    error: error.message,
-                    loading: false 
-                });
-                return false;
-            }
+        try {
+            this.setState({ loading: true });
+            await this.preloadNextStepData();
+            this.setState({
+                currentStep: this.currentStep + 1,
+                loading: false
+            });
+            return true;
+        } catch (error) {
+            this.setState({
+                error: error.message,
+                loading: false
+            });
+            return false;
         }
-        return false;
     }
 
     goToPreviousStep() {
-        if (this.canGoPrevious()) {
-            this.setState({ currentStep: this.currentStep - 1 });
-            return true;
-        }
-        return false;
+        if (!this.canGoPrevious()) return false;
+        this.setState({ currentStep: this.currentStep - 1 });
+        return true;
     }
 
-    // Service Management
-    toggleService(serviceId, serviceData) {
-        const updatedServices = new Map(this.selectedServices);
+    // Validation Methods
+    validateCustomerDetails() {
+        const { name, phone } = this.customerDetails;
+        const phoneRegex = /^05[0-9]{8}$/;
         
-        if (updatedServices.has(serviceId)) {
-            updatedServices.delete(serviceId);
-        } else {
-            if (updatedServices.size >= config.business.maxServicesPerBooking) {
-                throw new Error(
-                    this.currentLanguage === 'ar' 
-                        ? `لا يمكن اختيار أكثر من ${config.business.maxServicesPerBooking} خدمات`
-                        : `Cannot select more than ${config.business.maxServicesPerBooking} services`
-                );
-            }
-            updatedServices.set(serviceId, serviceData);
-        }
-        
-        this.setState({ 
-            selectedServices: updatedServices,
-            // Reset subsequent selections when services change
-            selectedDateTime: null,
-            selectedBarber: null
-        });
+        return name.length >= 3 && phoneRegex.test(phone);
+    }
+
+    validateDateTime(dateTime) {
+        const selected = new Date(dateTime);
+        const now = new Date();
+
+        // Basic validation
+        if (selected <= now) return false;
+
+        // Working hours validation
+        const hours = selected.getHours();
+        const minutes = selected.getMinutes();
+        const [startHour, startMin] = CONFIG.business.workingHours.start.split(':').map(Number);
+        const [endHour, endMin] = CONFIG.business.workingHours.end.split(':').map(Number);
+
+        const timeInMinutes = hours * 60 + minutes;
+        const startInMinutes = startHour * 60 + startMin;
+        const endInMinutes = endHour * 60 + endMin;
+
+        return timeInMinutes >= startInMinutes && timeInMinutes <= endInMinutes;
+    }
+
+    // Observer Pattern Implementation
+    subscribe(observer) {
+        this.observers.add(observer);
+        return () => this.observers.delete(observer);
+    }
+
+    notifyObservers() {
+        this.observers.forEach(observer => observer(this));
     }
 
     // State Persistence
     persistState() {
         const stateToSave = {
             currentStep: this.currentStep,
-            currentLanguage: this.currentLanguage,
+            language: this.language,
             selectedServices: Array.from(this.selectedServices.entries()),
+            selectedDate: this.selectedDate,
+            selectedTime: this.selectedTime,
             selectedDateTime: this.selectedDateTime,
             selectedBarber: this.selectedBarber,
             customerDetails: this.customerDetails
@@ -235,32 +438,36 @@ class BookingState {
     loadPersistedState() {
         try {
             const saved = localStorage.getItem('bookingState');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                
-                // Restore Map objects
-                const restoredServices = new Map(parsed.selectedServices || []);
-                
-                this.setState({
-                    currentStep: parsed.currentStep || 1,
-                    currentLanguage: parsed.currentLanguage || this.currentLanguage,
-                    selectedServices: restoredServices,
-                    selectedDateTime: parsed.selectedDateTime || null,
-                    selectedBarber: parsed.selectedBarber || null,
-                    customerDetails: parsed.customerDetails || { name: '', phone: '' }
-                });
-            }
+            if (!saved) return;
+
+            const parsed = JSON.parse(saved);
+            
+            // Restore Map objects
+            const restoredServices = new Map(parsed.selectedServices || []);
+            
+            this.setState({
+                currentStep: parsed.currentStep || 1,
+                language: parsed.language || this.language,
+                selectedServices: restoredServices,
+                selectedDate: parsed.selectedDate || null,
+                selectedTime: parsed.selectedTime || null,
+                selectedDateTime: parsed.selectedDateTime || null,
+                selectedBarber: parsed.selectedBarber || null,
+                customerDetails: parsed.customerDetails || { name: '', phone: '' }
+            }, false);
         } catch (error) {
             console.error('Error loading persisted state:', error);
             localStorage.removeItem('bookingState');
         }
     }
 
-    // Reset
+    // Cleanup and Reset
     reset() {
         this.setState({
             currentStep: 1,
             selectedServices: new Map(),
+            selectedDate: null,
+            selectedTime: null,
             selectedDateTime: null,
             selectedBarber: null,
             customerDetails: {
@@ -271,717 +478,40 @@ class BookingState {
         });
         localStorage.removeItem('bookingState');
     }
-}
 
-// Create and export instances
-const state = new BookingState();
-export { config, state };
-// firebase-service.js
-class FirebaseService {
-    constructor(config, state) {
-        // Initialize Firebase with retries
-        this.initializeFirebase(config.firebase);
-        this.state = state;
-        this.db = null;
-        this.activeSubscriptions = new Map();
-        this.retryAttempts = 3;
-        this.retryDelay = 1000; // 1 second
-    }
-
-    async initializeFirebase(firebaseConfig) {
-        let attempts = 0;
-        while (attempts < this.retryAttempts) {
-            try {
-                if (!firebase.apps.length) {
-                    firebase.initializeApp(firebaseConfig);
-                }
-                this.db = firebase.database();
-                await this.db.ref('.info/connected').once('value');
-                console.log('Firebase initialized successfully');
-                this.setupConnectionMonitoring();
-                return;
-            } catch (error) {
-                attempts++;
-                if (attempts === this.retryAttempts) {
-                    throw new Error(
-                        this.state.currentLanguage === 'ar'
-                            ? 'فشل الاتصال بالخادم. يرجى المحاولة مرة أخرى'
-                            : 'Failed to connect to server. Please try again'
-                    );
-                }
-                await new Promise(resolve => setTimeout(resolve, this.retryDelay * attempts));
-            }
+    // Preload Data Methods
+    async preloadNextStepData() {
+        const nextStep = this.currentStep + 1;
+        switch (nextStep) {
+            case 2:
+                await this.preloadTimeSlots();
+                break;
+            case 3:
+                await this.preloadBarbers();
+                break;
         }
     }
 
-    setupConnectionMonitoring() {
-        this.db.ref('.info/connected').on('value', (snap) => {
-            if (snap.val() === true) {
-                this.onConnected();
-            } else {
-                this.onDisconnected();
-            }
-        });
+    async preloadTimeSlots() {
+        // Implementation will be added in the UI Manager
     }
 
-    onConnected() {
-        document.dispatchEvent(new CustomEvent('connection-status', {
-            detail: { 
-                status: 'connected',
-                message: this.state.currentLanguage === 'ar' 
-                    ? 'تم استعادة الاتصال'
-                    : 'Connection restored'
-            }
-        }));
-    }
-
-    onDisconnected() {
-        document.dispatchEvent(new CustomEvent('connection-status', {
-            detail: { 
-                status: 'disconnected',
-                message: this.state.currentLanguage === 'ar'
-                    ? 'فقدان الاتصال. جاري المحاولة مرة أخرى...'
-                    : 'Connection lost. Retrying...'
-            }
-        }));
-    }
-
-    async fetchWithRetry(operation) {
-        let attempts = 0;
-        while (attempts < this.retryAttempts) {
-            try {
-                return await operation();
-            } catch (error) {
-                attempts++;
-                if (attempts === this.retryAttempts) {
-                    throw error;
-                }
-                await new Promise(resolve => setTimeout(resolve, this.retryDelay * attempts));
-            }
-        }
-    }
-
-    // Categories and Services
-    async loadCategories() {
-        const now = Date.now();
-        
-        // Check cache first
-        if (this.state.cache.categories && 
-            (now - this.state.cache.lastFetch.categories) < config.cache.categories) {
-            return this.state.cache.categories;
-        }
-
-        try {
-            const snapshot = await this.fetchWithRetry(() => 
-                this.db.ref('categories').once('value')
-            );
-            
-            const categories = snapshot.val() || {};
-            
-            // Update cache
-            this.state.cache.categories = categories;
-            this.state.cache.lastFetch.categories = now;
-            
-            return categories;
-        } catch (error) {
-            console.error('Error loading categories:', error);
-            throw new Error(
-                this.state.currentLanguage === 'ar'
-                    ? 'فشل تحميل الخدمات. يرجى المحاولة مرة أخرى'
-                    : 'Failed to load services. Please try again'
-            );
-        }
-    }
-
-    // Barbers Management
-    async loadBarbers() {
-        const now = Date.now();
-        
-        // Check cache first
-        if (this.state.cache.barbers && 
-            (now - this.state.cache.lastFetch.barbers) < config.cache.barbers) {
-            return this.state.cache.barbers;
-        }
-
-        try {
-            const snapshot = await this.fetchWithRetry(() => 
-                this.db.ref('barbers').once('value')
-            );
-            
-            const barbers = snapshot.val() || {};
-            const activeBarbers = Object.entries(barbers)
-                .filter(([_, barber]) => barber.active)
-                .reduce((acc, [id, barber]) => ({
-                    ...acc,
-                    [id]: barber
-                }), {});
-
-            // Update cache
-            this.state.cache.barbers = activeBarbers;
-            this.state.cache.lastFetch.barbers = now;
-            
-            return activeBarbers;
-        } catch (error) {
-            console.error('Error loading barbers:', error);
-            throw new Error(
-                this.state.currentLanguage === 'ar'
-                    ? 'فشل تحميل قائمة الحلاقين. يرجى المحاولة مرة أخرى'
-                    : 'Failed to load barbers. Please try again'
-            );
-        }
-    }
-
-    // Availability Checking
-    async checkBarberAvailability(barberId, dateTime, duration) {
-        try {
-            const date = new Date(dateTime);
-            const dateStr = date.toISOString().split('T')[0];
-            
-            const snapshot = await this.fetchWithRetry(() =>
-                this.db.ref('bookings')
-                    .orderByChild('barberId')
-                    .equalTo(barberId)
-                    .once('value')
-            );
-            
-            const bookings = snapshot.val() || {};
-            const selectedTime = date.getTime();
-            const selectedEndTime = selectedTime + (duration * 60 * 1000);
-            
-            // Check working hours
-            const barber = (await this.loadBarbers())[barberId];
-            if (!this.isWithinWorkingHours(date, barber.working_hours)) {
-                return false;
-            }
-
-            // Check existing bookings
-            const hasConflict = Object.values(bookings).some(booking => {
-                if (booking.status === 'cancelled') return false;
-                if (new Date(booking.dateTime).toISOString().split('T')[0] !== dateStr) return false;
-                
-                const bookingStart = new Date(booking.dateTime).getTime();
-                const bookingEnd = bookingStart + (booking.totalDuration * 60 * 1000);
-                
-                // Add buffer time
-                const bufferedStart = bookingStart - (config.business.bufferTime * 60 * 1000);
-                const bufferedEnd = bookingEnd + (config.business.bufferTime * 60 * 1000);
-                
-                return (selectedTime < bufferedEnd && selectedEndTime > bufferedStart);
-            });
-
-            return !hasConflict;
-        } catch (error) {
-            console.error('Error checking availability:', error);
-            throw new Error(
-                this.state.currentLanguage === 'ar'
-                    ? 'فشل التحقق من التوفر. يرجى المحاولة مرة أخرى'
-                    : 'Failed to check availability. Please try again'
-            );
-        }
-    }
-
-    isWithinWorkingHours(date, workingHours) {
-        const time = date.getHours() * 60 + date.getMinutes();
-        const [startHour, startMin] = workingHours.start.split(':').map(Number);
-        const [endHour, endMin] = workingHours.end.split(':').map(Number);
-        
-        const startTime = startHour * 60 + startMin;
-        const endTime = endHour * 60 + endMin;
-        
-        return time >= startTime && time <= endTime;
-    }
-
-    // Real-time Availability Updates
-    subscribeToAvailabilityUpdates(barberId, date, callback) {
-        const dateStr = new Date(date).toISOString().split('T')[0];
-        const subscriptionKey = `availability_${barberId}_${dateStr}`;
-        
-        // Cleanup existing subscription if any
-        this.unsubscribe(subscriptionKey);
-        
-        const subscription = this.db.ref('bookings')
-            .orderByChild('barberId')
-            .equalTo(barberId)
-            .on('value', snapshot => {
-                const bookings = snapshot.val() || {};
-                const unavailableTimes = Object.values(bookings)
-                    .filter(booking => {
-                        const bookingDate = new Date(booking.dateTime)
-                            .toISOString()
-                            .split('T')[0];
-                        return bookingDate === dateStr && booking.status !== 'cancelled';
-                    })
-                    .map(booking => ({
-                        start: new Date(booking.dateTime).getTime(),
-                        end: new Date(booking.dateTime).getTime() + 
-                             (booking.totalDuration * 60 * 1000)
-                    }));
-                
-                callback(unavailableTimes);
-            });
-        
-        this.activeSubscriptions.set(subscriptionKey, {
-            ref: this.db.ref('bookings'),
-            callback: subscription
-        });
-        
-        return () => this.unsubscribe(subscriptionKey);
-    }
-
-    // Booking Creation
-    async createBooking(bookingData) {
-        try {
-            // Final availability check
-            const isAvailable = await this.checkBarberAvailability(
-                bookingData.barberId,
-                bookingData.dateTime,
-                bookingData.totalDuration
-            );
-
-            if (!isAvailable) {
-                throw new Error(
-                    this.state.currentLanguage === 'ar'
-                        ? 'عذراً، هذا الموعد لم يعد متاحاً'
-                        : 'Sorry, this time slot is no longer available'
-                );
-            }
-
-            // Add booking
-            const newBookingRef = await this.fetchWithRetry(() =>
-                this.db.ref('bookings').push({
-                    ...bookingData,
-                    status: 'pending',
-                    createdAt: firebase.database.ServerValue.TIMESTAMP
-                })
-            );
-
-            return newBookingRef.key;
-        } catch (error) {
-            console.error('Error creating booking:', error);
-            throw new Error(
-                this.state.currentLanguage === 'ar'
-                    ? 'فشل إنشاء الحجز. يرجى المحاولة مرة أخرى'
-                    : 'Failed to create booking. Please try again'
-            );
-        }
-    }
-
-    // Cleanup
-    unsubscribe(key) {
-        const subscription = this.activeSubscriptions.get(key);
-        if (subscription) {
-            subscription.ref.off('value', subscription.callback);
-            this.activeSubscriptions.delete(key);
-        }
-    }
-
-    cleanup() {
-        // Cleanup all active subscriptions
-        this.activeSubscriptions.forEach((_, key) => this.unsubscribe(key));
-        this.activeSubscriptions.clear();
-        
-        // Cleanup connection monitoring
-        if (this.db) {
-            this.db.ref('.info/connected').off();
-        }
+    async preloadBarbers() {
+        // Implementation will be added in the UI Manager
     }
 }
 
-export const firebaseService = new FirebaseService(config, state);
-// booking-manager.js
-class BookingManager {
-    constructor(state, firebaseService, uiManager) {
-        this.state = state;
-        this.firebase = firebaseService;
-        this.ui = uiManager;
-        this.timeSlots = [];
-        this.availabilitySubscriptions = new Map();
-        
-        this.initializeBookingProcess();
-        this.setupEventListeners();
-    }
-
-    async initializeBookingProcess() {
-        try {
-            this.ui.showLoading(true);
-            await Promise.all([
-                this.loadCategories(),
-                this.loadBarbers()
-            ]);
-            this.ui.showLoading(false);
-        } catch (error) {
-            this.handleError(error);
-            this.ui.showLoading(false);
-        }
-    }
-
-    setupEventListeners() {
-        // Service selection
-        document.querySelectorAll('.service-card').forEach(card => {
-            card.addEventListener('click', (e) => {
-                const serviceId = e.currentTarget.dataset.serviceId;
-                this.handleServiceSelection(serviceId);
-            });
-        });
-
-        // Date selection
-        const dateInput = document.getElementById('appointment-date');
-        if (dateInput) {
-            dateInput.addEventListener('change', (e) => {
-                this.handleDateSelection(e.target.value);
-            });
-        }
-
-        // Time slot selection
-        document.querySelector('.time-slots-grid')?.addEventListener('click', (e) => {
-            if (e.target.classList.contains('time-slot')) {
-                this.handleTimeSlotSelection(e.target.dataset.time);
-            }
-        });
-
-        // Barber selection
-        document.querySelector('.barbers-grid')?.addEventListener('click', (e) => {
-            const barberCard = e.target.closest('.barber-card');
-            if (barberCard && !barberCard.classList.contains('unavailable')) {
-                this.handleBarberSelection(barberCard.dataset.barberId);
-            }
-        });
-
-        // Form inputs
-        const nameInput = document.getElementById('customer-name');
-        const phoneInput = document.getElementById('customer-phone');
-
-        if (nameInput) {
-            nameInput.addEventListener('input', (e) => {
-                this.handleCustomerInput('name', e.target.value);
-            });
-        }
-
-        if (phoneInput) {
-            phoneInput.addEventListener('input', (e) => {
-                this.handleCustomerInput('phone', e.target.value);
-            });
-        }
-
-        // Connection status
-        document.addEventListener('connection-status', (e) => {
-            this.handleConnectionStatus(e.detail);
-        });
-    }
-
-    async loadCategories() {
-        try {
-            const categories = await this.firebase.loadCategories();
-            this.state.setState({ categories: new Map(Object.entries(categories)) });
-            this.ui.renderCategories(categories);
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    async loadBarbers() {
-        try {
-            const barbers = await this.firebase.loadBarbers();
-            this.state.setState({ barbers: new Map(Object.entries(barbers)) });
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    handleServiceSelection(serviceId) {
-        try {
-            const service = this.findServiceById(serviceId);
-            if (!service) {
-                throw new Error(
-                    this.state.currentLanguage === 'ar' 
-                        ? 'الخدمة غير موجودة'
-                        : 'Service not found'
-                );
-            }
-
-            this.state.toggleService(serviceId, service);
-            this.ui.updateServiceSelection(serviceId);
-            this.ui.updateSummary();
-            
-            // Reset subsequent selections when services change
-            if (this.state.selectedDateTime) {
-                this.resetTimeSelection();
-            }
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    async handleDateSelection(date) {
-        try {
-            if (!date) return;
-
-            this.ui.showLoading(true);
-            const timeSlots = await this.generateTimeSlots(date);
-            this.timeSlots = timeSlots;
-            
-            this.ui.renderTimeSlots(timeSlots);
-            this.setupAvailabilitySubscriptions(date);
-            
-            this.ui.showLoading(false);
-        } catch (error) {
-            this.handleError(error);
-            this.ui.showLoading(false);
-        }
-    }
-
-    async handleTimeSlotSelection(time) {
-        try {
-            const selectedDateTime = `${this.state.selectedDate} ${time}`;
-            
-            if (!this.validateDateTime(selectedDateTime)) {
-                throw new Error(
-                    this.state.currentLanguage === 'ar'
-                        ? 'الوقت المحدد غير صالح'
-                        : 'Invalid time selection'
-                );
-            }
-
-            this.state.setState({ selectedDateTime });
-            await this.loadAvailableBarbers(selectedDateTime);
-            
-            this.ui.updateTimeSelection(time);
-            this.ui.updateSummary();
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    async handleBarberSelection(barberId) {
-        try {
-            const barber = this.state.barbers.get(barberId);
-            if (!barber) {
-                throw new Error(
-                    this.state.currentLanguage === 'ar'
-                        ? 'الحلاق غير موجود'
-                        : 'Barber not found'
-                );
-            }
-
-            // Check availability again
-            const isAvailable = await this.firebase.checkBarberAvailability(
-                barberId,
-                this.state.selectedDateTime,
-                this.calculateTotalDuration()
-            );
-
-            if (!isAvailable) {
-                throw new Error(
-                    this.state.currentLanguage === 'ar'
-                        ? 'عذراً، هذا الموعد لم يعد متاحاً'
-                        : 'Sorry, this time slot is no longer available'
-                );
-            }
-
-            this.state.setState({ selectedBarber: { id: barberId, ...barber } });
-            this.ui.updateBarberSelection(barberId);
-            this.ui.updateSummary();
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    handleCustomerInput(field, value) {
-        try {
-            const updates = {
-                ...this.state.customerDetails,
-                [field]: value.trim()
-            };
-
-            this.state.setState({ customerDetails: updates });
-            this.validateCustomerDetails(field, value.trim());
-            this.ui.updateNavigationButtons();
-        } catch (error) {
-            this.handleError(error);
-        }
-    }
-
-    async handleBookingSubmission() {
-        try {
-            this.ui.showLoading(true);
-
-            if (!this.validateBookingData()) {
-                throw new Error(
-                    this.state.currentLanguage === 'ar'
-                        ? 'يرجى التأكد من صحة جميع البيانات'
-                        : 'Please ensure all data is valid'
-                );
-            }
-
-            const bookingData = this.prepareBookingData();
-            const bookingId = await this.firebase.createBooking(bookingData);
-            
-            if (bookingId) {
-                await this.sendConfirmation(bookingData);
-                this.state.reset();
-                this.ui.showSuccessMessage();
-            }
-        } catch (error) {
-            this.handleError(error);
-        } finally {
-            this.ui.showLoading(false);
-        }
-    }
-
-    handleConnectionStatus({ status, message }) {
-        if (status === 'connected') {
-            this.ui.showToast(message, 'success');
-            this.refreshCurrentData();
-        } else {
-            this.ui.showToast(message, 'error');
-        }
-    }
-
-    async refreshCurrentData() {
-        if (this.state.currentStep === 1) {
-            await this.loadCategories();
-        } else if (this.state.currentStep === 2 && this.state.selectedDate) {
-            await this.handleDateSelection(this.state.selectedDate);
-        } else if (this.state.currentStep === 3 && this.state.selectedDateTime) {
-            await this.loadAvailableBarbers(this.state.selectedDateTime);
-        }
-    }
-
-    // Utility Methods
-    findServiceById(serviceId) {
-        for (const [_, category] of this.state.categories) {
-            if (category.services && category.services[serviceId]) {
-                return {
-                    id: serviceId,
-                    ...category.services[serviceId]
-                };
-            }
-        }
-        return null;
-    }
-
-    calculateTotalDuration() {
-        return Array.from(this.state.selectedServices.values())
-            .reduce((total, service) => {
-                const duration = parseInt(service.duration);
-                return total + (isNaN(duration) ? 0 : duration);
-            }, 0);
-    }
-
-    calculateTotalPrice() {
-        return Array.from(this.state.selectedServices.values())
-            .reduce((total, service) => total + service.price, 0);
-    }
-
-    async generateTimeSlots(date) {
-        const slots = [];
-        const selectedDate = new Date(date);
-        const totalDuration = this.calculateTotalDuration();
-
-        // Get working hours from config
-        const [startHour, startMin] = config.business.workingHours.start.split(':').map(Number);
-        const [endHour, endMin] = config.business.workingHours.end.split(':').map(Number);
-
-        let currentSlot = new Date(selectedDate);
-        currentSlot.setHours(startHour, startMin, 0, 0);
-
-        const endTime = new Date(selectedDate);
-        endTime.setHours(endHour, endMin, 0, 0);
-
-        while (currentSlot < endTime) {
-            // Check if slot is in the future
-            if (currentSlot > new Date()) {
-                slots.push({
-                    time: currentSlot.toTimeString().slice(0, 5),
-                    available: true
-                });
-            }
-
-            // Increment by config.business.timeSlotInterval
-            currentSlot = new Date(currentSlot.getTime() + config.business.timeSlotInterval * 60000);
-        }
-
-        return slots;
-    }
-
-    validateDateTime(dateTime) {
-        const selectedDate = new Date(dateTime);
-        const now = new Date();
-
-        // Check if date is in the future
-        if (selectedDate <= now) {
-            return false;
-        }
-
-        // Check working hours
-        const hours = selectedDate.getHours();
-        const minutes = selectedDate.getMinutes();
-        const [startHour, startMin] = config.business.workingHours.start.split(':').map(Number);
-        const [endHour, endMin] = config.business.workingHours.end.split(':').map(Number);
-
-        const timeInMinutes = hours * 60 + minutes;
-        const startInMinutes = startHour * 60 + startMin;
-        const endInMinutes = endHour * 60 + endMin;
-
-        return timeInMinutes >= startInMinutes && timeInMinutes <= endInMinutes;
-    }
-
-    validateCustomerDetails(field, value) {
-        const errors = {
-            name: '',
-            phone: ''
-        };
-
-        if (field === 'name' || field === undefined) {
-            if (!value && !this.state.customerDetails.name) {
-                errors.name = this.state.currentLanguage === 'ar'
-                    ? 'الاسم مطلوب'
-                    : 'Name is required';
-            } else if ((value || this.state.customerDetails.name).length < 3) {
-                errors.name = this.state.currentLanguage === 'ar'
-                    ? 'يجب أن يكون الاسم 3 أحرف على الأقل'
-                    : 'Name must be at least 3 characters';
-            }
-        }
-
-        if (field === 'phone' || field === undefined) {
-            const phoneRegex = /^05[0-9]{8}$/;
-            if (!value && !this.state.customerDetails.phone) {
-                errors.phone = this.state.currentLanguage === 'ar'
-                    ? 'رقم الجوال مطلوب'
-                    : 'Phone number is required';
-            } else if (!phoneRegex.test(value || this.state.customerDetails.phone)) {
-                errors.phone = this.state.currentLanguage === 'ar'
-                    ? 'يجب أن يبدأ رقم الجوال بـ 05 ويتكون من 10 أرقام'
-                    : 'Phone number must start with 05 and be 10 digits';
-            }
-        }
-
-        this.ui.showValidationErrors(errors);
-        return !errors.name && !errors.phone;
-    }
-
-    handleError(error) {
-        console.error('Booking error:', error);
-        this.ui.showToast(error.message, 'error');
-    }
-
-    cleanup() {
-        // Clean up subscriptions
-        this.availabilitySubscriptions.forEach(subscription => subscription());
-        this.availabilitySubscriptions.clear();
-    }
-}
-
-export const bookingManager = new BookingManager(state, firebaseService, uiManager);
+export const state = new BookingState();
 // ui-manager.js
 class UIManager {
-    constructor(state) {
+    constructor(state, firebaseService) {
         this.state = state;
+        this.firebase = firebaseService;
         this.elements = this.initializeElements();
         this.setupStateObserver();
         this.setupEventListeners();
-        this.animationDuration = 300; // ms
+        this.activeTimeouts = new Set();
+        this.animationDuration = 300;
     }
 
     initializeElements() {
@@ -994,15 +524,15 @@ class UIManager {
                 prev: document.querySelector('.prev-btn'),
                 next: document.querySelector('.next-btn')
             },
-            forms: {
-                booking: document.getElementById('booking-form'),
-                name: document.getElementById('customer-name'),
-                phone: document.getElementById('customer-phone')
-            },
             grids: {
                 categories: document.querySelector('.categories-services-grid'),
                 timeSlots: document.querySelector('.time-slots-grid'),
                 barbers: document.querySelector('.barbers-grid')
+            },
+            forms: {
+                booking: document.getElementById('booking-form'),
+                name: document.getElementById('customer-name'),
+                phone: document.getElementById('customer-phone')
             },
             summary: {
                 container: document.querySelector('.booking-summary'),
@@ -1023,28 +553,45 @@ class UIManager {
     }
 
     setupEventListeners() {
-        // Navigation buttons
-        this.elements.navigation.prev?.addEventListener('click', () => {
-            this.handleNavigation('prev');
+        // Navigation
+        this.elements.navigation.prev?.addEventListener('click', () => this.handleNavigation('prev'));
+        this.elements.navigation.next?.addEventListener('click', () => this.handleNavigation('next'));
+
+        // Category and Service Selection
+        this.elements.grids.categories?.addEventListener('click', (e) => {
+            const categoryHeader = e.target.closest('.category-header');
+            if (categoryHeader) {
+                this.toggleCategory(categoryHeader.closest('.category'));
+                return;
+            }
+
+            const serviceCard = e.target.closest('.service-card');
+            if (serviceCard) {
+                this.handleServiceSelection(serviceCard);
+            }
         });
 
-        this.elements.navigation.next?.addEventListener('click', () => {
-            this.handleNavigation('next');
+        // Date and Time Selection
+        this.elements.datePicker?.addEventListener('change', (e) => {
+            this.handleDateSelection(e.target.value);
         });
 
-        // Summary toggle
-        this.elements.summary.toggle?.addEventListener('click', () => {
-            this.toggleSummary();
+        this.elements.grids.timeSlots?.addEventListener('click', (e) => {
+            const timeSlot = e.target.closest('.time-slot');
+            if (timeSlot && !timeSlot.disabled) {
+                this.handleTimeSlotSelection(timeSlot);
+            }
         });
 
-        // Language switcher
-        this.elements.languageButtons?.forEach(button => {
-            button.addEventListener('click', () => {
-                this.handleLanguageChange(button.dataset.lang);
-            });
+        // Barber Selection
+        this.elements.grids.barbers?.addEventListener('click', (e) => {
+            const barberCard = e.target.closest('.barber-card');
+            if (barberCard && !barberCard.classList.contains('unavailable')) {
+                this.handleBarberSelection(barberCard);
+            }
         });
 
-        // Form validation
+        // Form Validation
         this.elements.forms.name?.addEventListener('input', (e) => {
             this.validateField(e.target, 'name');
         });
@@ -1053,7 +600,19 @@ class UIManager {
             this.validateField(e.target, 'phone');
         });
 
-        // Handle back/forward browser buttons
+        // Summary Toggle
+        this.elements.summary.toggle?.addEventListener('click', () => {
+            this.toggleSummary();
+        });
+
+        // Language Switching
+        this.elements.languageButtons?.forEach(button => {
+            button.addEventListener('click', () => {
+                this.handleLanguageChange(button.dataset.lang);
+            });
+        });
+
+        // Handle browser back/forward
         window.addEventListener('popstate', (e) => {
             if (e.state?.step) {
                 this.state.setState({ currentStep: e.state.step });
@@ -1061,55 +620,37 @@ class UIManager {
         });
     }
 
-    createToastContainer() {
-        const container = document.createElement('div');
-        container.className = 'toast-container';
-        container.setAttribute('role', 'alert');
-        container.setAttribute('aria-live', 'polite');
-        document.body.appendChild(container);
-        return container;
-    }
-
-    // Basic UI Updates
+    // UI Update Methods
     updateUI() {
         this.updateSteps();
         this.updateNavigationButtons();
         this.updateSummary();
-        this.updateLanguage();
+        this.updateLanguageButtons();
+        this.updateDirectionality();
     }
-}
-// ui-manager.js - Part 2
-class UIManager {
-    // ... (previous code)
 
     updateSteps() {
         const { currentStep } = this.state;
+        const progressSteps = this.elements.steps.progress;
+        const contentSteps = this.elements.steps.content;
 
-        // Update progress indicators
-        this.elements.steps.progress.forEach((step, index) => {
+        progressSteps.forEach((step, index) => {
             const stepNumber = index + 1;
-            
-            // Update classes
             step.classList.toggle('active', stepNumber === currentStep);
             step.classList.toggle('completed', stepNumber < currentStep);
-            
-            // Update accessibility attributes
-            step.setAttribute('aria-current', stepNumber === currentStep ? 'step' : 'false');
-            step.setAttribute('aria-completed', stepNumber < currentStep ? 'true' : 'false');
-            
-            // Update step number display
-            const stepCircle = step.querySelector('.step-circle');
-            if (stepCircle) {
+
+            const circle = step.querySelector('.step-circle');
+            if (circle) {
                 if (stepNumber < currentStep) {
-                    stepCircle.innerHTML = '<span class="step-check">✓</span>';
+                    circle.innerHTML = '✓';
+                    circle.setAttribute('aria-label', 'Completed');
                 } else {
-                    stepCircle.textContent = stepNumber;
+                    circle.textContent = stepNumber;
                 }
             }
         });
 
-        // Update step content with animation
-        this.elements.steps.content.forEach((content, index) => {
+        contentSteps.forEach((content, index) => {
             const stepNumber = index + 1;
             if (stepNumber === currentStep) {
                 this.showStepContent(content);
@@ -1118,41 +659,39 @@ class UIManager {
             }
         });
 
-        // Update URL without refreshing
-        this.updateURL(currentStep);
+        this.updateProgressBar(currentStep);
     }
 
     async showStepContent(element) {
         // Ensure element is displayed before animating
         element.style.display = 'block';
-        
-        // Wait for next frame to ensure display change is processed
         await new Promise(resolve => requestAnimationFrame(resolve));
         
-        // Add active class to trigger animation
         element.classList.add('active');
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
         
-        // Scroll into view smoothly
-        element.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'start',
-            inline: 'nearest'
-        });
-
         // Announce to screen readers
         this.announceStepChange(element);
     }
 
     hideStepContent(element) {
-        // Remove active class to trigger fade out
         element.classList.remove('active');
         
-        // Hide element after animation completes
-        setTimeout(() => {
+        const timeout = setTimeout(() => {
             if (!element.classList.contains('active')) {
                 element.style.display = 'none';
             }
         }, this.animationDuration);
+
+        this.activeTimeouts.add(timeout);
+    }
+
+    updateProgressBar(currentStep) {
+        const progress = ((currentStep - 1) / (this.state.maxSteps - 1)) * 100;
+        const progressLine = document.querySelector('.progress-line');
+        if (progressLine) {
+            progressLine.style.setProperty('--progress', `${progress}%`);
+        }
     }
 
     updateNavigationButtons() {
@@ -1162,639 +701,29 @@ class UIManager {
             const canGoPrevious = this.state.canGoPrevious();
             prev.disabled = !canGoPrevious;
             prev.setAttribute('aria-disabled', !canGoPrevious);
-            prev.classList.toggle('disabled', !canGoPrevious);
         }
         
         if (next) {
             const canGoNext = this.state.canGoNext();
             next.disabled = !canGoNext;
             next.setAttribute('aria-disabled', !canGoNext);
-            next.classList.toggle('disabled', !canGoNext);
             
             // Update button text based on step
             const isLastStep = this.state.currentStep === this.state.maxSteps;
-            next.textContent = this.translate(isLastStep ? 'Confirm Booking' : 'Next');
-            
-            // Add loading state if needed
-            next.classList.toggle('loading', this.state.loading);
+            next.textContent = this.translate(isLastStep ? 'confirm_booking' : 'next');
         }
     }
 
-    handleNavigation(direction) {
-        if (direction === 'prev' && this.state.canGoPrevious()) {
-            this.navigateToPreviousStep();
-        } else if (direction === 'next' && this.state.canGoNext()) {
-            this.navigateToNextStep();
-        }
-    }
-
-    async navigateToNextStep() {
-        try {
-            // Show loading state
-            this.showLoadingButton('next');
-            
-            // Validate current step
-            if (!this.validateCurrentStep()) {
-                return;
-            }
-
-            // Attempt to move to next step
-            const success = await this.state.goToNextStep();
-            
-            if (success) {
-                // Animate progress bar
-                this.animateProgress();
-                
-                // Pre-load data for next step if needed
-                await this.preloadNextStepData();
-            }
-        } catch (error) {
-            this.showToast(error.message, 'error');
-        } finally {
-            this.hideLoadingButton('next');
-        }
-    }
-
-    navigateToPreviousStep() {
-        if (this.state.goToPreviousStep()) {
-            this.animateProgress(true);
-        }
-    }
-
-    updateURL(step) {
-        const url = new URL(window.location);
-        url.searchParams.set('step', step);
-        window.history.pushState({ step }, '', url);
-    }
-
-    animateProgress(reverse = false) {
-        const progressLine = document.querySelector('.progress-line');
-        if (!progressLine) return;
-
-        const currentStep = this.state.currentStep;
-        const totalSteps = this.state.maxSteps;
-        const progress = ((currentStep - 1) / (totalSteps - 1)) * 100;
-
-        progressLine.style.width = `${progress}%`;
-    }
-
-    validateCurrentStep() {
-        switch (this.state.currentStep) {
-            case 1:
-                return this.validateServicesSelection();
-            case 2:
-                return this.validateDateTime();
-            case 3:
-                return this.validateBarberSelection();
-            case 4:
-                return this.validateCustomerDetails();
-            default:
-                return true;
-        }
-    }
-
-    announceStepChange(element) {
-        const announcement = element.getAttribute('aria-label') || 
-                           element.querySelector('h2')?.textContent;
-        
-        if (announcement) {
-            const announcer = document.createElement('div');
-            announcer.className = 'visually-hidden';
-            announcer.setAttribute('aria-live', 'polite');
-            announcer.textContent = announcement;
-            document.body.appendChild(announcer);
-            
-            setTimeout(() => announcer.remove(), 1000);
-        }
-    }
-
-    showLoadingButton(buttonType) {
-        const button = this.elements.navigation[buttonType];
-        if (button) {
-            button.classList.add('loading');
-            button.disabled = true;
-        }
-    }
-
-    hideLoadingButton(buttonType) {
-        const button = this.elements.navigation[buttonType];
-        if (button) {
-            button.classList.remove('loading');
-            button.disabled = !this.state[buttonType === 'next' ? 'canGoNext' : 'canGoPrevious']();
-        }
-    }
-
-    async preloadNextStepData() {
-        const nextStep = this.state.currentStep + 1;
-        switch (nextStep) {
-            case 2:
-                await this.preloadDateTimeData();
-                break;
-            case 3:
-                await this.preloadBarberData();
-                break;
-            case 4:
-                this.focusFirstFormField();
-                break;
-        }
-    }
-}
-// ui-manager.js - Part 3
-class UIManager {
-    // ... (previous code)
-
-    validateField(input, fieldType) {
-        const value = input.value.trim();
-        const errorElement = input.nextElementSibling;
-        let isValid = true;
-        let errorMessage = '';
-
-        switch (fieldType) {
-            case 'name':
-                if (value.length < 3) {
-                    isValid = false;
-                    errorMessage = this.state.currentLanguage === 'ar' 
-                        ? 'يجب أن يكون الاسم 3 أحرف على الأقل'
-                        : 'Name must be at least 3 characters';
-                }
-                break;
-
-            case 'phone':
-                const phoneRegex = /^05[0-9]{8}$/;
-                if (!phoneRegex.test(value)) {
-                    isValid = false;
-                    errorMessage = this.state.currentLanguage === 'ar'
-                        ? 'يجب أن يبدأ رقم الجوال بـ 05 ويتكون من 10 أرقام'
-                        : 'Phone number must start with 05 and be 10 digits';
-                }
-                break;
-        }
-
-        this.updateFieldValidationUI(input, errorElement, isValid, errorMessage);
-        this.updateFormValidationState();
-        return isValid;
-    }
-
-    validateServicesSelection() {
-        const selectedServices = this.state.selectedServices;
-        
-        if (selectedServices.size === 0) {
-            this.showToast(
-                this.state.currentLanguage === 'ar'
-                    ? 'الرجاء اختيار خدمة واحدة على الأقل'
-                    : 'Please select at least one service',
-                'error'
-            );
-            return false;
-        }
-
-        if (selectedServices.size > config.business.maxServicesPerBooking) {
-            this.showToast(
-                this.state.currentLanguage === 'ar'
-                    ? `لا يمكن اختيار أكثر من ${config.business.maxServicesPerBooking} خدمات`
-                    : `Cannot select more than ${config.business.maxServicesPerBooking} services`,
-                'error'
-            );
-            return false;
-        }
-
-        return true;
-    }
-
-    validateDateTime() {
-        if (!this.state.selectedDateTime) {
-            this.showToast(
-                this.state.currentLanguage === 'ar'
-                    ? 'الرجاء اختيار موعد'
-                    : 'Please select an appointment time',
-                'error'
-            );
-            return false;
-        }
-
-        const selectedDate = new Date(this.state.selectedDateTime);
-        const now = new Date();
-
-        if (selectedDate <= now) {
-            this.showToast(
-                this.state.currentLanguage === 'ar'
-                    ? 'الرجاء اختيار موعد في المستقبل'
-                    : 'Please select a future date and time',
-                'error'
-            );
-            return false;
-        }
-
-        return true;
-    }
-
-    validateBarberSelection() {
-        if (!this.state.selectedBarber) {
-            this.showToast(
-                this.state.currentLanguage === 'ar'
-                    ? 'الرجاء اختيار حلاق'
-                    : 'Please select a barber',
-                'error'
-            );
-            return false;
-        }
-        return true;
-    }
-
-    validateCustomerDetails() {
-        const { name, phone } = this.state.customerDetails;
-        let isValid = true;
-
-        // Name validation
-        if (name.length < 3) {
-            this.showFieldError(
-                'name',
-                this.state.currentLanguage === 'ar'
-                    ? 'يجب أن يكون الاسم 3 أحرف على الأقل'
-                    : 'Name must be at least 3 characters'
-            );
-            isValid = false;
-        }
-
-        // Phone validation
-        const phoneRegex = /^05[0-9]{8}$/;
-        if (!phoneRegex.test(phone)) {
-            this.showFieldError(
-                'phone',
-                this.state.currentLanguage === 'ar'
-                    ? 'يجب أن يبدأ رقم الجوال بـ 05 ويتكون من 10 أرقام'
-                    : 'Phone number must start with 05 and be 10 digits'
-            );
-            isValid = false;
-        }
-
-        return isValid;
-    }
-
-    updateFieldValidationUI(input, errorElement, isValid, errorMessage) {
-        input.classList.toggle('error', !isValid);
-        input.setAttribute('aria-invalid', !isValid);
-        
-        if (errorElement) {
-            errorElement.textContent = errorMessage;
-            errorElement.classList.toggle('visible', !isValid);
-        }
-
-        // Update parent form-group styling
-        const formGroup = input.closest('.form-group');
-        if (formGroup) {
-            formGroup.classList.toggle('has-error', !isValid);
-        }
-    }
-
-    updateFormValidationState() {
-        const isValid = Array.from(this.elements.forms.booking.elements)
-            .every(element => !element.classList.contains('error'));
-            
-        this.elements.forms.booking.classList.toggle('is-valid', isValid);
-        this.elements.navigation.next.disabled = !isValid;
-    }
-
-    showFieldError(fieldName, message) {
-        const input = this.elements.forms[fieldName];
-        const errorElement = input?.nextElementSibling;
-        
-        if (input && errorElement) {
-            this.updateFieldValidationUI(input, errorElement, false, message);
-            input.focus();
-        }
-    }
-
-    resetFormValidation() {
-        const forms = this.elements.forms;
-        if (!forms.booking) return;
-
-        Array.from(forms.booking.elements).forEach(element => {
-            element.classList.remove('error');
-            element.setAttribute('aria-invalid', 'false');
-            
-            const errorElement = element.nextElementSibling;
-            if (errorElement?.classList.contains('error-message')) {
-                errorElement.textContent = '';
-                errorElement.classList.remove('visible');
-            }
-
-            const formGroup = element.closest('.form-group');
-            if (formGroup) {
-                formGroup.classList.remove('has-error');
-            }
-        });
-
-        forms.booking.classList.remove('is-valid');
-    }
-
-    focusFirstFormField() {
-        setTimeout(() => {
-            const firstInput = this.elements.forms.booking?.querySelector('input:not([disabled])');
-            if (firstInput) {
-                firstInput.focus();
-            }
-        }, this.animationDuration);
-    }
-
-    handleFormSubmission = async (event) => {
-        event.preventDefault();
-        
-        if (!this.validateCustomerDetails()) {
-            return;
-        }
-
-        try {
-            this.showLoading(true);
-            await this.state.submitBooking();
-            
-            this.showToast(
-                this.state.currentLanguage === 'ar'
-                    ? 'تم حجز موعدك بنجاح'
-                    : 'Your appointment has been booked successfully',
-                'success'
-            );
-            
-            this.resetForm();
-        } catch (error) {
-            this.showToast(error.message, 'error');
-        } finally {
-            this.showLoading(false);
-        }
-    }
-
-    resetForm() {
-        this.elements.forms.booking?.reset();
-        this.resetFormValidation();
-        this.state.reset();
-        this.updateUI();
-    }
-}
-// ui-manager.js - Part 4
-class UIManager {
-    // ... (previous code)
-
-    // Categories and Services Rendering
-    renderCategories(categories) {
-        if (!this.elements.grids.categories) return;
-
-        this.elements.grids.categories.innerHTML = '';
-        
-        Object.entries(categories).forEach(([categoryId, category]) => {
-            const categoryElement = this.createCategoryElement(categoryId, category);
-            this.elements.grids.categories.appendChild(categoryElement);
-        });
-
-        // Setup category interactions after rendering
-        this.setupCategoryInteractions();
-    }
-
-    createCategoryElement(categoryId, category) {
-        const categoryDiv = document.createElement('div');
-        categoryDiv.className = 'category';
-        categoryDiv.dataset.categoryId = categoryId;
-
-        categoryDiv.innerHTML = `
-            <div class="category-header">
-                <span class="category-title">
-                    ${category[this.state.currentLanguage]}
-                </span>
-                <span class="category-toggle" role="button" tabindex="0">
-                    <span class="visually-hidden">
-                        ${this.translate('Toggle Category')}
-                    </span>
-                    +
-                </span>
-            </div>
-            <div class="category-services" aria-expanded="false">
-                ${this.generateServicesHTML(category.services)}
-            </div>
-        `;
-
-        return categoryDiv;
-    }
-
-    generateServicesHTML(services) {
-        return Object.entries(services).map(([serviceId, service]) => `
-            <div class="service-card ${this.state.selectedServices.has(serviceId) ? 'selected' : ''}"
-                 data-service-id="${serviceId}"
-                 role="button"
-                 tabindex="0"
-                 aria-pressed="${this.state.selectedServices.has(serviceId)}"
-                 aria-label="${service[`name_${this.state.currentLanguage}`]}"
-            >
-                <div class="service-name">
-                    ${service[`name_${this.state.currentLanguage}`]}
-                </div>
-                <div class="service-details">
-                    ${service[`description_${this.state.currentLanguage}`] || ''}
-                </div>
-                <div class="service-info">
-                    <span class="service-duration">
-                        <i class="icon-clock"></i>
-                        ${this.formatDuration(service.duration)}
-                    </span>
-                    <span class="service-price">
-                        ${service.price} ${this.translate('SAR')}
-                    </span>
-                </div>
-                <div class="service-selected-indicator" aria-hidden="true">✓</div>
-            </div>
-        `).join('');
-    }
-
-    setupCategoryInteractions() {
-        this.elements.grids.categories.querySelectorAll('.category-header').forEach(header => {
-            header.addEventListener('click', () => this.toggleCategory(header));
-            header.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    this.toggleCategory(header);
-                }
-            });
-        });
-
-        // Setup service card interactions
-        this.elements.grids.categories.querySelectorAll('.service-card').forEach(card => {
-            this.setupServiceCardInteractions(card);
-        });
-    }
-
-    // Time Slots Rendering
-    renderTimeSlots(slots) {
-        if (!this.elements.grids.timeSlots) return;
-
-        this.elements.grids.timeSlots.innerHTML = '';
-        
-        const timeSlotsList = document.createElement('div');
-        timeSlotsList.className = 'time-slots-grid';
-        timeSlotsList.setAttribute('role', 'group');
-        timeSlotsList.setAttribute('aria-label', this.translate('Available Time Slots'));
-
-        slots.forEach(slot => {
-            const timeSlotElement = this.createTimeSlotElement(slot);
-            timeSlotsList.appendChild(timeSlotElement);
-        });
-
-        this.elements.grids.timeSlots.appendChild(timeSlotsList);
-        this.setupTimeSlotInteractions();
-    }
-
-    createTimeSlotElement(slot) {
-        const button = document.createElement('button');
-        button.className = `time-slot ${slot.available ? '' : 'unavailable'}`;
-        button.dataset.time = slot.time;
-        button.disabled = !slot.available;
-        button.setAttribute('type', 'button');
-        button.setAttribute('aria-label', this.formatTimeSlotLabel(slot));
-
-        const timeDisplay = document.createElement('span');
-        timeDisplay.className = 'time-display';
-        timeDisplay.textContent = this.formatTime(slot.time);
-
-        if (!slot.available) {
-            const unavailableIndicator = document.createElement('span');
-            unavailableIndicator.className = 'unavailable-indicator';
-            unavailableIndicator.setAttribute('aria-hidden', 'true');
-            button.appendChild(unavailableIndicator);
-        }
-
-        button.appendChild(timeDisplay);
-        return button;
-    }
-
-    // Barbers Rendering
-    renderBarbers(barbers) {
-        if (!this.elements.grids.barbers) return;
-
-        this.elements.grids.barbers.innerHTML = '';
-        
-        Object.entries(barbers).forEach(([barberId, barber]) => {
-            const barberElement = this.createBarberElement(barberId, barber);
-            this.elements.grids.barbers.appendChild(barberElement);
-        });
-
-        this.setupBarberInteractions();
-    }
-
-    createBarberElement(barberId, barber) {
-        const isSelected = this.state.selectedBarber?.id === barberId;
-        const isAvailable = barber.available !== false;
-
-        const barberCard = document.createElement('div');
-        barberCard.className = `barber-card ${isSelected ? 'selected' : ''} ${isAvailable ? '' : 'unavailable'}`;
-        barberCard.dataset.barberId = barberId;
-        barberCard.setAttribute('role', 'button');
-        barberCard.setAttribute('tabindex', isAvailable ? '0' : '-1');
-        barberCard.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
-        barberCard.setAttribute('aria-disabled', !isAvailable);
-
-        barberCard.innerHTML = `
-            <div class="barber-avatar">
-                <span class="barber-initials">
-                    ${this.getBarberInitials(barber[`name_${this.state.currentLanguage}`])}
-                </span>
-            </div>
-            <div class="barber-info">
-                <div class="barber-name">
-                    ${barber[`name_${this.state.currentLanguage}`]}
-                </div>
-                <div class="barber-schedule">
-                    ${this.formatWorkingHours(barber.working_hours)}
-                </div>
-            </div>
-            <div class="barber-status" aria-hidden="true"></div>
-        `;
-
-        return barberCard;
-    }
-
-    // Utility Methods for Rendering
-    formatDuration(duration) {
-        const match = duration.match(/^(\d+)([mh])$/);
-        if (!match) return duration;
-
-        const [_, value, unit] = match;
-        if (unit === 'h') {
-            return this.state.currentLanguage === 'ar'
-                ? `${value} ساعة`
-                : `${value} hour${value === '1' ? '' : 's'}`;
-        }
-        return this.state.currentLanguage === 'ar'
-            ? `${value} دقيقة`
-            : `${value} min`;
-    }
-
-    formatTimeSlotLabel(slot) {
-        const timeString = this.formatTime(slot.time);
-        const availability = slot.available
-            ? this.translate('Available')
-            : this.translate('Not Available');
-        
-        return `${timeString} - ${availability}`;
-    }
-
-    getBarberInitials(name) {
-        return name
-            .split(' ')
-            .map(part => part[0])
-            .slice(0, 2)
-            .join('')
-            .toUpperCase();
-    }
-
-    formatWorkingHours(hours) {
-        return `${this.formatTime(hours.start)} - ${this.formatTime(hours.end)}`;
-    }
-}
-// ui-manager.js - Part 5
-class UIManager {
-    // ... (previous code)
-
-    // Category Interactions
-    setupCategoryInteractions() {
-        const categories = this.elements.grids.categories.querySelectorAll('.category');
-        
-        categories.forEach(category => {
-            const header = category.querySelector('.category-header');
-            const toggle = category.querySelector('.category-toggle');
-            const services = category.querySelector('.category-services');
-
-            // Click handling
-            header.addEventListener('click', () => {
-                this.toggleCategory(category);
-            });
-
-            // Keyboard navigation
-            header.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    this.toggleCategory(category);
-                }
-            });
-
-            // Setup service interactions
-            const serviceCards = services.querySelectorAll('.service-card');
-            serviceCards.forEach(card => this.setupServiceCardInteractions(card));
-        });
-    }
-
+    // Category and Service Selection Methods
     toggleCategory(category) {
         const services = category.querySelector('.category-services');
         const toggle = category.querySelector('.category-toggle');
         const isExpanded = services.getAttribute('aria-expanded') === 'true';
 
-        // Update UI
         services.setAttribute('aria-expanded', !isExpanded);
         category.classList.toggle('open');
-        
-        // Update toggle icon and text
         toggle.textContent = isExpanded ? '+' : '-';
-        toggle.setAttribute('aria-label', 
-            this.translate(isExpanded ? 'Expand Category' : 'Collapse Category')
-        );
-
-        // Animate height
+        
         if (!isExpanded) {
             const height = services.scrollHeight;
             services.style.height = '0';
@@ -1811,394 +740,92 @@ class UIManager {
         }
     }
 
-    // Service Card Interactions
-    setupServiceCardInteractions(card) {
-        card.addEventListener('click', () => this.handleServiceSelection(card));
-        
-        card.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                this.handleServiceSelection(card);
-            }
-        });
-
-        // Touch feedback
-        card.addEventListener('touchstart', () => {
-            card.classList.add('touch-active');
-        }, { passive: true });
-
-        card.addEventListener('touchend', () => {
-            card.classList.remove('touch-active');
-        });
-    }
-
     handleServiceSelection(card) {
-        const serviceId = card.dataset.serviceId;
-        
         try {
-            // Trigger service selection in state
-            this.state.toggleService(serviceId);
+            const serviceId = card.dataset.serviceId;
+            const service = this.findServiceById(serviceId);
             
-            // Update UI
-            this.updateServiceCard(card);
+            if (!service) {
+                throw new Error(this.translate('service_not_found'));
+            }
+
+            this.state.toggleService(serviceId, service);
+            this.updateServiceCardUI(card);
             this.updateSummary();
-            
-            // Provide feedback
-            this.showSelectionFeedback(card);
-            
         } catch (error) {
             this.showToast(error.message, 'error');
         }
     }
 
-    updateServiceCard(card) {
+    findServiceById(serviceId) {
+        for (const [_, category] of this.state.categories) {
+            if (category.services?.[serviceId]) {
+                return {
+                    id: serviceId,
+                    ...category.services[serviceId]
+                };
+            }
+        }
+        return null;
+    }
+
+    updateServiceCardUI(card) {
         const serviceId = card.dataset.serviceId;
         const isSelected = this.state.selectedServices.has(serviceId);
         
-        // Update visual state
         card.classList.toggle('selected', isSelected);
         card.setAttribute('aria-pressed', isSelected);
         
-        // Animate selection indicator
-        const indicator = card.querySelector('.service-selected-indicator');
+        const indicator = card.querySelector('.service-selected-icon');
         if (indicator) {
             indicator.style.transform = isSelected ? 'scale(1)' : 'scale(0)';
         }
     }
 
-    // Time Slot Interactions
-    setupTimeSlotInteractions() {
-        const slots = this.elements.grids.timeSlots.querySelectorAll('.time-slot');
-        
-        slots.forEach(slot => {
-            if (!slot.disabled) {
-                slot.addEventListener('click', () => this.handleTimeSlotSelection(slot));
-                
-                slot.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        this.handleTimeSlotSelection(slot);
-                    }
-                });
-            }
-        });
-    }
+    // Date and Time Selection Methods
+    async handleDateSelection(date) {
+        if (!date) return;
 
-    handleTimeSlotSelection(slot) {
-        const time = slot.dataset.time;
-        
-        // Update state
-        this.state.setSelectedTime(time);
-        
-        // Update UI
-        this.updateTimeSlotSelection(slot);
-        this.updateSummary();
-        
-        // Load available barbers
-        this.loadAvailableBarbers(time);
-    }
-
-    updateTimeSlotSelection(selectedSlot) {
-        // Remove selection from all slots
-        this.elements.grids.timeSlots.querySelectorAll('.time-slot').forEach(slot => {
-            slot.classList.remove('selected');
-            slot.setAttribute('aria-pressed', 'false');
-        });
-        
-        // Add selection to chosen slot
-        if (selectedSlot) {
-            selectedSlot.classList.add('selected');
-            selectedSlot.setAttribute('aria-pressed', 'true');
-        }
-    }
-
-    // Barber Selection Interactions
-    setupBarberInteractions() {
-        const barberCards = this.elements.grids.barbers.querySelectorAll('.barber-card:not(.unavailable)');
-        
-        barberCards.forEach(card => {
-            card.addEventListener('click', () => this.handleBarberSelection(card));
-            
-            card.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    this.handleBarberSelection(card);
-                }
-            });
-
-            // Hover effects
-            card.addEventListener('mouseenter', () => {
-                if (!card.classList.contains('unavailable')) {
-                    card.classList.add('hover');
-                }
-            });
-
-            card.addEventListener('mouseleave', () => {
-                card.classList.remove('hover');
-            });
-        });
-    }
-
-    handleBarberSelection(card) {
-        const barberId = card.dataset.barberId;
-        
         try {
-            // Update state
-            this.state.setSelectedBarber(barberId);
-            
-            // Update UI
-            this.updateBarberSelection(card);
-            this.updateSummary();
-            
-            // Show selection feedback
-            this.showSelectionFeedback(card);
-            
+            this.showLoading(true);
+            const timeSlots = await this.generateTimeSlots(date);
+            this.state.setState({ selectedDate: date });
+            this.renderTimeSlots(timeSlots);
+            this.setupAvailabilitySubscriptions(date);
         } catch (error) {
             this.showToast(error.message, 'error');
+        } finally {
+            this.showLoading(false);
         }
     }
 
-    updateBarberSelection(selectedCard) {
-        // Remove selection from all cards
-        this.elements.grids.barbers.querySelectorAll('.barber-card').forEach(card => {
-            card.classList.remove('selected');
-            card.setAttribute('aria-pressed', 'false');
-        });
-        
-        // Add selection to chosen card
-        if (selectedCard) {
-            selectedCard.classList.add('selected');
-            selectedCard.setAttribute('aria-pressed', 'true');
-        }
-    }
+    async generateTimeSlots(date) {
+        const slots = [];
+        const selectedDate = new Date(date);
+        const totalDuration = this.calculateTotalDuration();
 
-    // Selection Feedback
-    showSelectionFeedback(element) {
-        // Visual feedback
-        element.classList.add('feedback');
-        setTimeout(() => element.classList.remove('feedback'), 300);
-        
-        // Haptic feedback (if available)
-        if (window.navigator.vibrate) {
-            window.navigator.vibrate(50);
-        }
-        
-        // Sound feedback (if enabled)
-        this.playSelectionSound();
-    }
+        const [startHour, startMin] = CONFIG.business.workingHours.start.split(':');
+        const [endHour, endMin] = CONFIG.business.workingHours.end.split(':');
 
-    playSelectionSound() {
-        // Only play if user hasn't disabled sounds
-        if (localStorage.getItem('enableSounds') !== 'false') {
-            const audio = new Audio('assets/sounds/select.mp3');
-            audio.volume = 0.5;
-            audio.play().catch(() => {}); // Ignore errors if audio fails to play
-        }
-    }
+        let currentSlot = new Date(selectedDate);
+        currentSlot.setHours(parseInt(startHour), parseInt(startMin), 0, 0);
 
-    // State Updates
-    updateUIFromState() {
-        // Update all UI elements based on current state
-        this.updateServiceSelections();
-        this.updateTimeSelection();
-        this.updateBarberSelection();
-        this.updateSummary();
-        this.updateNavigationButtons();
-    }
+        const endTime = new Date(selectedDate);
+        endTime.setHours(parseInt(endHour), parseInt(endMin), 0, 0);
 
-    updateServiceSelections() {
-        const serviceCards = this.elements.grids.categories.querySelectorAll('.service-card');
-        serviceCards.forEach(card => {
-            const serviceId = card.dataset.serviceId;
-            this.updateServiceCard(card);
-        });
-    }
-
-    updateTimeSelection() {
-        const { selectedDateTime } = this.state;
-        if (selectedDateTime) {
-            const time = new Date(selectedDateTime).toTimeString().slice(0, 5);
-            const slot = this.elements.grids.timeSlots.querySelector(`[data-time="${time}"]`);
-            if (slot) {
-                this.updateTimeSlotSelection(slot);
+        while (currentSlot < endTime) {
+            if (currentSlot > new Date()) {
+                slots.push({
+                    time: currentSlot.toTimeString().slice(0, 5),
+                    available: true
+                });
             }
-        }
-    }
-
-    updateBarberSelection() {
-        const { selectedBarber } = this.state;
-        if (selectedBarber) {
-            const card = this.elements.grids.barbers.querySelector(`[data-barber-id="${selectedBarber.id}"]`);
-            if (card) {
-                this.updateBarberSelection(card);
-            }
-        }
-    }
-}
-// ui-manager.js - Part 6
-class UIManager {
-    // ... (previous code)
-
-    // Summary Box Management
-    updateSummary() {
-        const { selectedServices, selectedDateTime, selectedBarber } = this.state;
-        
-        // Generate summary sections
-        const sections = {
-            services: this.generateServicesSummary(selectedServices),
-            datetime: this.generateDateTimeSummary(selectedDateTime),
-            barber: this.generateBarberSummary(selectedBarber),
-            total: this.generateTotalSummary(selectedServices)
-        };
-
-        // Update summary content
-        this.renderSummary(sections);
-        
-        // Show/hide summary box based on content
-        this.toggleSummaryVisibility(selectedServices.size > 0);
-        
-        // Animate updates
-        this.animateSummaryUpdates();
-    }
-
-    generateServicesSummary(services) {
-        if (services.size === 0) return '';
-
-        return `
-            <div class="summary-section services-summary" data-aos="fade-up">
-                <h4 class="summary-section-title">
-                    ${this.translate('Selected Services')}
-                </h4>
-                <div class="summary-services">
-                    ${Array.from(services.values()).map(service => `
-                        <div class="summary-service-item" data-service-id="${service.id}">
-                            <div class="service-info">
-                                <span class="service-name">
-                                    ${service[`name_${this.state.currentLanguage}`]}
-                                </span>
-                                <span class="service-duration">
-                                    ${this.formatDuration(service.duration)}
-                                </span>
-                            </div>
-                            <span class="service-price">
-                                ${this.formatPrice(service.price)}
-                            </span>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }
-
-    generateDateTimeSummary(dateTime) {
-        if (!dateTime) return '';
-
-        return `
-            <div class="summary-section datetime-summary" data-aos="fade-up" data-aos-delay="100">
-                <h4 class="summary-section-title">
-                    ${this.translate('Appointment Time')}
-                </h4>
-                <div class="summary-datetime">
-                    <div class="date-display">
-                        <i class="icon-calendar"></i>
-                        ${this.formatDate(dateTime)}
-                    </div>
-                    <div class="time-display">
-                        <i class="icon-clock"></i>
-                        ${this.formatTime(dateTime)}
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    generateBarberSummary(barber) {
-        if (!barber) return '';
-
-        return `
-            <div class="summary-section barber-summary" data-aos="fade-up" data-aos-delay="200">
-                <h4 class="summary-section-title">
-                    ${this.translate('Selected Barber')}
-                </h4>
-                <div class="summary-barber">
-                    <div class="barber-avatar">
-                        <span class="barber-initials">
-                            ${this.getBarberInitials(barber[`name_${this.state.currentLanguage}`])}
-                        </span>
-                    </div>
-                    <div class="barber-info">
-                        <div class="barber-name">
-                            ${barber[`name_${this.state.currentLanguage}`]}
-                        </div>
-                        <div class="barber-schedule">
-                            ${this.formatWorkingHours(barber.working_hours)}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    generateTotalSummary(services) {
-        if (services.size === 0) return '';
-
-        const total = Array.from(services.values())
-            .reduce((sum, service) => sum + service.price, 0);
-
-        return `
-            <div class="summary-total" data-aos="fade-up" data-aos-delay="300">
-                <div class="total-row">
-                    <span class="total-label">${this.translate('Total')}</span>
-                    <span class="total-amount">${this.formatPrice(total)}</span>
-                </div>
-                <div class="total-note">
-                    ${this.translate('Including VAT')}
-                </div>
-            </div>
-        `;
-    }
-
-    renderSummary(sections) {
-        const summaryContent = this.elements.summary.content;
-        
-        // Create temporary container for smooth transition
-        const tempContainer = document.createElement('div');
-        tempContainer.className = 'summary-content-temp';
-        tempContainer.innerHTML = Object.values(sections).join('');
-
-        // Fade out current content
-        summaryContent.style.opacity = '0';
-        
-        // After fade out, update content and fade in
-        setTimeout(() => {
-            summaryContent.innerHTML = tempContainer.innerHTML;
-            summaryContent.style.opacity = '1';
             
-            // Initialize any new animations
-            this.initializeSummaryAnimations();
-        }, 300);
-    }
-
-    toggleSummaryVisibility(show) {
-        const { container } = this.elements.summary;
-        
-        if (show && container.classList.contains('hidden')) {
-            container.classList.remove('hidden');
-            container.setAttribute('aria-hidden', 'false');
-            
-            // Animate in
-            requestAnimationFrame(() => {
-                container.style.transform = 'translateY(0)';
-            });
-        } else if (!show && !container.classList.contains('hidden')) {
-            container.style.transform = 'translateY(100%)';
-            
-            // After animation, hide completely
-            setTimeout(() => {
-                container.classList.add('hidden');
-                container.setAttribute('aria-hidden', 'true');
-            }, 300);
+            currentSlot = new Date(currentSlot.getTime() + 
+                               CONFIG.business.timeSlotInterval * 60000);
         }
+
+        return slots;
     }
 
     // Toast Notifications
@@ -2206,30 +833,11 @@ class UIManager {
         const toast = this.createToastElement(message, type);
         this.elements.toastContainer.appendChild(toast);
 
-        // Animate entrance
-        requestAnimationFrame(() => {
-            toast.classList.add('show');
-        });
+        requestAnimationFrame(() => toast.classList.add('show'));
 
-        // Setup auto-dismiss
-        const dismissTimeout = setTimeout(() => {
-            this.dismissToast(toast);
-        }, duration);
-
-        // Store timeout ID for potential early dismissal
+        const dismissTimeout = setTimeout(() => this.dismissToast(toast), duration);
         toast.dataset.timeoutId = dismissTimeout;
-
-        // Setup manual dismiss
-        const closeButton = toast.querySelector('.toast-close');
-        if (closeButton) {
-            closeButton.addEventListener('click', () => {
-                clearTimeout(dismissTimeout);
-                this.dismissToast(toast);
-            });
-        }
-
-        // Setup swipe to dismiss on mobile
-        this.setupToastSwipeDismiss(toast);
+        this.activeTimeouts.add(dismissTimeout);
 
         return toast;
     }
@@ -2238,369 +846,733 @@ class UIManager {
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
         toast.setAttribute('role', 'alert');
-        toast.setAttribute('aria-live', 'polite');
-
         toast.innerHTML = `
             <div class="toast-content">
-                <div class="toast-icon">
-                    ${this.getToastIcon(type)}
-                </div>
                 <div class="toast-message">${message}</div>
-                <button class="toast-close" aria-label="${this.translate('Close')}">
-                    <span aria-hidden="true">×</span>
-                </button>
+                <button class="toast-close" aria-label="${this.translate('close')}">×</button>
             </div>
             <div class="toast-progress"></div>
         `;
+
+        toast.querySelector('.toast-close').addEventListener('click', () => {
+            this.dismissToast(toast);
+        });
 
         return toast;
     }
 
     dismissToast(toast) {
-        // Clear any existing timeout
-        const timeoutId = toast.dataset.timeoutId;
-        if (timeoutId) {
-            clearTimeout(timeoutId);
-        }
-
-        // Animate out
+        clearTimeout(parseInt(toast.dataset.timeoutId));
         toast.classList.add('hiding');
         
-        // Remove after animation
         toast.addEventListener('animationend', () => {
             toast.remove();
-            
-            // If no more toasts, remove container
             if (this.elements.toastContainer.children.length === 0) {
                 this.elements.toastContainer.remove();
             }
         });
     }
 
-    setupToastSwipeDismiss(toast) {
-        let startX;
-        let currentX;
-        let isDragging = false;
+    // Loading State Management
+    showLoading(show) {
+        const overlay = this.elements.loadingOverlay;
+        if (!overlay) return;
 
-        toast.addEventListener('touchstart', (e) => {
-            startX = e.touches[0].clientX;
-            isDragging = true;
-            toast.style.transition = 'none';
-        }, { passive: true });
-
-        toast.addEventListener('touchmove', (e) => {
-            if (!isDragging) return;
-            
-            currentX = e.touches[0].clientX;
-            const deltaX = currentX - startX;
-            
-            // Limit swipe to one direction based on RTL
-            const isRTL = this.state.currentLanguage === 'ar';
-            if ((isRTL && deltaX < 0) || (!isRTL && deltaX > 0)) return;
-            
-            toast.style.transform = `translateX(${deltaX}px)`;
-        }, { passive: true });
-
-        toast.addEventListener('touchend', () => {
-            if (!isDragging) return;
-            
-            isDragging = false;
-            toast.style.transition = '';
-            
-            const deltaX = currentX - startX;
-            if (Math.abs(deltaX) > toast.offsetWidth * 0.5) {
-                this.dismissToast(toast);
-            } else {
-                toast.style.transform = '';
-            }
-        });
+        overlay.classList.toggle('active', show);
+        overlay.setAttribute('aria-hidden', !show);
+        
+        if (show) {
+            overlay.querySelector('.loading-text').textContent = 
+                this.translate('loading');
+        }
     }
 
-    getToastIcon(type) {
-        switch (type) {
-            case 'success':
-                return '<svg>...</svg>'; // Success icon SVG
-            case 'error':
-                return '<svg>...</svg>'; // Error icon SVG
-            case 'warning':
-                return '<svg>...</svg>'; // Warning icon SVG
-            default:
-                return '<svg>...</svg>'; // Info icon SVG
-        }
+    // Cleanup
+    cleanup() {
+        this.activeTimeouts.forEach(clearTimeout);
+        this.activeTimeouts.clear();
+        
+        // Remove event listeners
+        this.elements.grids.categories?.replaceWith(
+            this.elements.grids.categories.cloneNode(true)
+        );
+        
+        this.elements.toastContainer?.remove();
+        this.elements.loadingOverlay?.remove();
+        
+        // Stop all animations
+        document.getAnimations().forEach(animation => animation.cancel());
+    }
+
+    // Translation Helper
+    translate(key) {
+        const translations = {
+            loading: {
+                en: 'Loading...',
+                ar: 'جاري التحميل...'
+            },
+            next: {
+                en: 'Next',
+                ar: 'التالي'
+            },
+            confirm_booking: {
+                en: 'Confirm Booking',
+                ar: 'تأكيد الحجز'
+            },
+            close: {
+                en: 'Close',
+                ar: 'إغلاق'
+            },
+            service_not_found: {
+                en: 'Service not found',
+                ar: 'الخدمة غير موجودة'
+            }
+            // Add more translations as needed
+        };
+
+        return translations[key]?.[this.state.language] || key;
     }
 }
-// ui-manager.js - Part 7
-class UIManager {
-    // ... (previous code)
 
-    // Formatting Utilities
-    formatPrice(price) {
-        return new Intl.NumberFormat(
-            this.state.currentLanguage === 'ar' ? 'ar-SA' : 'en-US',
-            {
-                style: 'currency',
-                currency: 'SAR',
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0
-            }
-        ).format(price);
-    }
-
-    formatDate(dateTime) {
-        const date = new Date(dateTime);
-        return date.toLocaleDateString(
-            this.state.currentLanguage === 'ar' ? 'ar-SA' : 'en-US',
-            {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            }
-        );
-    }
-
-    formatTime(time) {
-        if (typeof time === 'string' && time.includes(':')) {
-            // Handle time string format (HH:mm)
-            const [hours, minutes] = time.split(':');
-            const date = new Date();
-            date.setHours(parseInt(hours), parseInt(minutes));
-            return this.formatTimeFromDate(date);
-        } else if (time instanceof Date) {
-            // Handle Date object
-            return this.formatTimeFromDate(time);
-        }
-        return time; // Return as is if format not recognized
-    }
-
-    formatTimeFromDate(date) {
-        return date.toLocaleTimeString(
-            this.state.currentLanguage === 'ar' ? 'ar-SA' : 'en-US',
-            {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true
-            }
-        );
-    }
-
-    formatDurationForDisplay(duration) {
-        // Parse duration string (e.g., "90m" or "1h 30m")
-        const hours = Math.floor(duration / 60);
-        const minutes = duration % 60;
+export const uiManager = new UIManager(state, firebaseService);
+// booking-manager.js
+class BookingManager {
+    constructor(state, firebaseService, uiManager) {
+        this.state = state;
+        this.firebase = firebaseService;
+        this.ui = uiManager;
+        this.flatpickr = null;
+        this.availabilitySubscriptions = new Map();
         
-        if (this.state.currentLanguage === 'ar') {
-            const parts = [];
-            if (hours > 0) {
-                parts.push(`${hours} ${hours === 1 ? 'ساعة' : 'ساعات'}`);
-            }
-            if (minutes > 0) {
-                parts.push(`${minutes} دقيقة`);
-            }
-            return parts.join(' و ');
-        } else {
-            const parts = [];
-            if (hours > 0) {
-                parts.push(`${hours} ${hours === 1 ? 'hour' : 'hours'}`);
-            }
-            if (minutes > 0) {
-                parts.push(`${minutes} min`);
-            }
-            return parts.join(' ');
+        this.initialize();
+    }
+
+    async initialize() {
+        try {
+            this.ui.showLoading(true);
+            await Promise.all([
+                this.initializeCategories(),
+                this.initializeBarbers(),
+                this.initializeCalendar()
+            ]);
+            this.setupRealTimeUpdates();
+            this.ui.showLoading(false);
+        } catch (error) {
+            this.handleError(error);
+            this.ui.showLoading(false);
         }
     }
 
-    // Animation Helpers
-    animateElement(element, animationName, duration = 300) {
-        return new Promise(resolve => {
-            element.classList.add(animationName);
-            
-            const cleanup = () => {
-                element.classList.remove(animationName);
-                element.removeEventListener('animationend', onAnimationEnd);
-                resolve();
-            };
+    // Initialization Methods
+    async initializeCategories() {
+        const categories = await this.firebase.getCategories();
+        this.state.setState({ categories: new Map(Object.entries(categories)) });
+        this.ui.renderCategories(categories);
+    }
 
-            const onAnimationEnd = (event) => {
-                if (event.target === element) {
-                    cleanup();
-                }
-            };
+    async initializeBarbers() {
+        const barbers = await this.firebase.getBarbers();
+        this.state.setState({ barbers: new Map(Object.entries(barbers)) });
+    }
 
-            element.addEventListener('animationend', onAnimationEnd);
-            
-            // Failsafe: cleanup after duration + 100ms buffer
-            setTimeout(cleanup, duration + 100);
+    initializeCalendar() {
+        const datePickerElement = this.ui.elements.datePicker;
+        if (!datePickerElement) return;
+
+        // Configure Flatpickr
+        this.flatpickr = flatpickr(datePickerElement, {
+            minDate: 'today',
+            maxDate: new Date().fp_incr(30), // Allow booking up to 30 days ahead
+            disable: [
+                function(date) {
+                    // Disable dates based on business rules
+                    return this.isDateDisabled(date);
+                }.bind(this)
+            ],
+            locale: this.state.language === 'ar' ? Arabic : English,
+            onChange: this.handleDateChange.bind(this)
         });
     }
 
-    // Accessibility Helpers
-    announceToScreenReader(message, priority = 'polite') {
-        const announcer = document.createElement('div');
-        announcer.className = 'sr-only';
-        announcer.setAttribute('aria-live', priority);
-        announcer.textContent = message;
-        
-        document.body.appendChild(announcer);
-        
-        // Remove after announcement
-        setTimeout(() => {
-            announcer.remove();
-        }, 1000);
+    setupRealTimeUpdates() {
+        // Listen for booking updates
+        this.firebase.subscribeToBookingUpdates((bookings) => {
+            this.updateAvailability(bookings);
+        });
+
+        // Listen for barber status updates
+        this.firebase.subscribeToBarberUpdates((barbers) => {
+            this.updateBarberAvailability(barbers);
+        });
     }
 
-    // Device Detection and Adaptation
-    isMobileDevice() {
-        return window.innerWidth <= 768 || 
-               ('ontouchstart' in window) || 
-               (navigator.maxTouchPoints > 0);
+    // Date and Time Management
+    isDateDisabled(date) {
+        // Check if date is in the past
+        if (date < new Date().setHours(0, 0, 0, 0)) return true;
+
+        // Check if it's a holiday or special closure date
+        if (this.isHoliday(date)) return true;
+
+        // Check if any barbers are available on this date
+        return !this.hasAvailableBarbers(date);
     }
 
-    setupTouchInteractions() {
-        if (!this.isMobileDevice()) return;
+    isHoliday(date) {
+        // Implementation for holiday checking
+        // Could be extended to fetch from Firebase or config
+        const holidays = [
+            '2024-12-25', // Example holiday
+        ];
+        
+        return holidays.includes(date.toISOString().split('T')[0]);
+    }
 
-        // Add touch-specific classes
-        document.body.classList.add('touch-device');
-        
-        // Setup touch feedback
-        document.addEventListener('touchstart', () => {}, {passive: true});
-        
-        // Disable hover effects on touch devices
-        const style = document.createElement('style');
-        style.textContent = `
-            @media (hover: none) {
-                .hover-effect {
-                    display: none;
+    hasAvailableBarbers(date) {
+        const dayOfWeek = date.getDay();
+        return Array.from(this.state.barbers.values()).some(barber => {
+            return barber.active && this.isBarberWorkingOnDay(barber, dayOfWeek);
+        });
+    }
+
+    isBarberWorkingOnDay(barber, dayOfWeek) {
+        // Check barber's working days
+        return barber.workingDays?.[dayOfWeek] !== false;
+    }
+
+    async handleDateChange(selectedDates) {
+        const selectedDate = selectedDates[0];
+        if (!selectedDate) return;
+
+        try {
+            this.ui.showLoading(true);
+            
+            // Generate time slots
+            const timeSlots = await this.generateTimeSlots(selectedDate);
+            
+            // Update state and UI
+            this.state.setSelectedDate(selectedDate.toISOString().split('T')[0]);
+            this.ui.renderTimeSlots(timeSlots);
+            
+            // Setup availability monitoring
+            this.setupAvailabilityMonitoring(selectedDate);
+            
+        } catch (error) {
+            this.handleError(error);
+        } finally {
+            this.ui.showLoading(false);
+        }
+    }
+
+    async generateTimeSlots(date) {
+        const slots = [];
+        const totalDuration = this.calculateTotalDuration();
+
+        // Get working hours
+        const [startHour, startMin] = CONFIG.business.workingHours.start.split(':').map(Number);
+        const [endHour, endMin] = CONFIG.business.workingHours.end.split(':').map(Number);
+
+        let currentSlot = new Date(date);
+        currentSlot.setHours(startHour, startMin, 0, 0);
+
+        const endTime = new Date(date);
+        endTime.setHours(endHour, endMin, 0, 0);
+
+        // Generate slots
+        while (currentSlot < endTime) {
+            // Only include future time slots
+            if (currentSlot > new Date()) {
+                const timeString = currentSlot.toTimeString().slice(0, 5);
+                const availability = await this.checkSlotAvailability(currentSlot, totalDuration);
+                
+                slots.push({
+                    time: timeString,
+                    available: availability.available,
+                    barbers: availability.availableBarbers
+                });
+            }
+
+            // Increment by slot interval
+            currentSlot = new Date(currentSlot.getTime() + 
+                               (CONFIG.business.timeSlotInterval * 60000));
+        }
+
+        return slots;
+    }
+
+    async checkSlotAvailability(dateTime, duration) {
+        const availableBarbers = [];
+        let isAvailable = false;
+
+        for (const [barberId, barber] of this.state.barbers) {
+            if (!barber.active) continue;
+
+            const barberAvailable = await this.firebase.checkBarberAvailability(
+                barberId,
+                dateTime.toISOString(),
+                duration
+            );
+
+            if (barberAvailable) {
+                availableBarbers.push(barberId);
+                isAvailable = true;
+            }
+        }
+
+        return {
+            available: isAvailable,
+            availableBarbers
+        };
+    }
+
+    setupAvailabilityMonitoring(date) {
+        // Clear existing subscriptions
+        this.availabilitySubscriptions.forEach(unsubscribe => unsubscribe());
+        this.availabilitySubscriptions.clear();
+
+        // Setup new subscriptions for each barber
+        this.state.barbers.forEach((barber, barberId) => {
+            if (!barber.active) return;
+
+            const unsubscribe = this.firebase.subscribeToBarberAvailability(
+                barberId,
+                date,
+                (unavailableTimes) => {
+                    this.updateTimeSlotAvailability(barberId, unavailableTimes);
+                }
+            );
+
+            this.availabilitySubscriptions.set(barberId, unsubscribe);
+        });
+    }
+
+    updateTimeSlotAvailability(barberId, unavailableTimes) {
+        const timeSlots = this.ui.elements.grids.timeSlots.querySelectorAll('.time-slot');
+        const totalDuration = this.calculateTotalDuration();
+
+        timeSlots.forEach(slot => {
+            const timeStr = slot.dataset.time;
+            const dateTime = new Date(`${this.state.selectedDate}T${timeStr}`);
+            const endTime = new Date(dateTime.getTime() + (totalDuration * 60000));
+
+            const isConflict = unavailableTimes.some(period => {
+                return (dateTime < period.end && endTime > period.start);
+            });
+
+            // Update slot availability
+            if (isConflict) {
+                slot.dataset.unavailableBarbers = 
+                    (slot.dataset.unavailableBarbers || '') + `${barberId},`;
+                
+                // Check if all barbers are unavailable
+                const unavailableBarbers = new Set(slot.dataset.unavailableBarbers.split(','));
+                const activeBarbers = Array.from(this.state.barbers.entries())
+                    .filter(([_, b]) => b.active)
+                    .map(([id]) => id);
+
+                if (unavailableBarbers.size >= activeBarbers.length) {
+                    slot.disabled = true;
+                    slot.classList.add('unavailable');
                 }
             }
-        `;
-        document.head.appendChild(style);
+        });
+    }
+
+    // Booking Process
+    async handleBookingSubmission() {
+        try {
+            if (!this.validateBookingData()) {
+                throw new Error(this.ui.translate('invalid_booking_data'));
+            }
+
+            this.ui.showLoading(true);
+
+            // Prepare booking data
+            const bookingData = {
+                services: Array.from(this.state.selectedServices.values()),
+                dateTime: this.state.selectedDateTime,
+                barberId: this.state.selectedBarber.id,
+                customerDetails: this.state.customerDetails,
+                totalDuration: this.calculateTotalDuration(),
+                totalPrice: this.calculateTotalPrice(),
+                status: 'pending',
+                createdAt: new Date().toISOString()
+            };
+
+            // Create booking
+            const bookingId = await this.firebase.createBooking(bookingData);
+            
+            if (bookingId) {
+                await this.sendConfirmation(bookingData);
+                this.state.reset();
+                this.ui.showSuccessMessage();
+            }
+
+        } catch (error) {
+            this.handleError(error);
+        } finally {
+            this.ui.showLoading(false);
+        }
+    }
+
+    validateBookingData() {
+        return (
+            this.state.selectedServices.size > 0 &&
+            this.state.selectedDateTime &&
+            this.state.selectedBarber &&
+            this.state.validateCustomerDetails()
+        );
+    }
+
+    calculateTotalDuration() {
+        return Array.from(this.state.selectedServices.values())
+            .reduce((total, service) => {
+                const duration = parseInt(service.duration);
+                return total + (isNaN(duration) ? 0 : duration);
+            }, 0);
+    }
+
+    calculateTotalPrice() {
+        return Array.from(this.state.selectedServices.values())
+            .reduce((total, service) => total + service.price, 0);
+    }
+
+    async sendConfirmation(bookingData) {
+        // Implementation for sending confirmation
+        // Could be extended to send SMS, email, or WhatsApp message
+        console.log('Sending confirmation for booking:', bookingData);
     }
 
     // Error Handling
-    handleError(error, context = '') {
-        console.error(`UI Error ${context ? `in ${context}` : ''}:`, error);
+    handleError(error) {
+        console.error('Booking error:', error);
+        this.ui.showToast(error.message, 'error');
+    }
 
-        // Show user-friendly error message
-        this.showToast(
-            this.getErrorMessage(error),
+    // Cleanup
+    cleanup() {
+        this.flatpickr?.destroy();
+        this.availabilitySubscriptions.forEach(unsubscribe => unsubscribe());
+        this.availabilitySubscriptions.clear();
+    }
+}
+
+// Export instances
+export const bookingManager = new BookingManager(state, firebaseService, uiManager);
+
+// Initialize the application
+document.addEventListener('DOMContentLoaded', () => {
+    bookingManager.initialize().catch(error => {
+        console.error('Failed to initialize booking system:', error);
+    });
+});
+// main.js
+import { config, firebaseService } from './firebase-service';
+import { state } from './state';
+import { uiManager } from './ui-manager';
+import { bookingManager } from './booking-manager';
+
+class BookingApplication {
+    constructor() {
+        this.config = config;
+        this.firebase = firebaseService;
+        this.state = state;
+        this.ui = uiManager;
+        this.bookingManager = bookingManager;
+        
+        // Error boundaries for global error handling
+        this.setupErrorBoundaries();
+        
+        // Performance monitoring
+        this.setupPerformanceMonitoring();
+    }
+
+    async initialize() {
+        try {
+            console.log('Initializing Booking Application...');
+            
+            // Show initial loading state
+            this.ui.showLoading(true);
+
+            // Initialize Firebase
+            await this.firebase.initializeFirebase();
+            console.log('Firebase initialized successfully');
+
+            // Load initial data
+            await Promise.all([
+                this.loadInitialData(),
+                this.setupLocalizations(),
+                this.initializeUI()
+            ]);
+
+            // Setup service worker for offline support
+            this.setupServiceWorker();
+            
+            // Setup analytics
+            this.setupAnalytics();
+            
+            console.log('Booking Application initialized successfully');
+            this.ui.showLoading(false);
+            
+        } catch (error) {
+            console.error('Failed to initialize Booking Application:', error);
+            this.handleInitializationError(error);
+        }
+    }
+
+    async loadInitialData() {
+        try {
+            // Load categories and services
+            const categories = await this.firebase.getCategories();
+            this.state.setState({ categories: new Map(Object.entries(categories)) });
+
+            // Load barbers
+            const barbers = await this.firebase.getBarbers();
+            this.state.setState({ barbers: new Map(Object.entries(barbers)) });
+
+            // Load any persisted state
+            this.state.loadPersistedState();
+
+        } catch (error) {
+            console.error('Error loading initial data:', error);
+            throw error;
+        }
+    }
+
+    setupLocalizations() {
+        // Setup language detection and RTL support
+        const language = this.state.getInitialLanguage();
+        document.documentElement.lang = language;
+        document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+
+        // Load language-specific date formats and translations
+        this.setupDateLocalization(language);
+    }
+
+    setupDateLocalization(language) {
+        // Configure date formatting based on locale
+        const dateConfig = {
+            ar: {
+                format: 'DD/MM/YYYY',
+                firstDayOfWeek: 6, // Saturday
+                months: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 
+                        'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
+                weekdays: ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
+            },
+            en: {
+                format: 'MM/DD/YYYY',
+                firstDayOfWeek: 0, // Sunday
+                months: ['January', 'February', 'March', 'April', 'May', 'June', 
+                        'July', 'August', 'September', 'October', 'November', 'December'],
+                weekdays: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+            }
+        };
+
+        // Apply date configuration to flatpickr and other date-handling components
+        if (this.bookingManager.flatpickr) {
+            this.bookingManager.flatpickr.set('locale', dateConfig[language]);
+        }
+    }
+
+    async initializeUI() {
+        // Initialize base UI components
+        this.ui.initializeElements();
+        
+        // Setup responsive behaviors
+        this.setupResponsiveUI();
+        
+        // Initialize booking steps
+        await this.initializeBookingSteps();
+        
+        // Setup keyboard navigation
+        this.setupKeyboardNavigation();
+        
+        // Initialize summary box
+        this.initializeSummaryBox();
+    }
+
+    setupResponsiveUI() {
+        // Create and observe responsive breakpoints
+        const breakpoints = {
+            mobile: window.matchMedia('(max-width: 767px)'),
+            tablet: window.matchMedia('(min-width: 768px) and (max-width: 1023px)'),
+            desktop: window.matchMedia('(min-width: 1024px)')
+        };
+
+        // Handle responsive layout changes
+        Object.entries(breakpoints).forEach(([device, query]) => {
+            query.addListener((e) => this.handleResponsiveChange(device, e.matches));
+            this.handleResponsiveChange(device, query.matches);
+        });
+    }
+
+    async initializeBookingSteps() {
+        // Initialize each booking step
+        const steps = [
+            this.initializeServicesStep.bind(this),
+            this.initializeDateTimeStep.bind(this),
+            this.initializeBarberStep.bind(this),
+            this.initializeConfirmationStep.bind(this)
+        ];
+
+        for (let i = 0; i < steps.length; i++) {
+            await steps[i]();
+        }
+    }
+
+    setupKeyboardNavigation() {
+        // Setup keyboard shortcuts and focus management
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.handleEscapeKey();
+            }
+        });
+
+        // Setup focus trap for modals
+        this.setupFocusTraps();
+    }
+
+    initializeSummaryBox() {
+        // Initialize floating summary box
+        const summaryBox = this.ui.elements.summary.container;
+        if (summaryBox) {
+            this.setupSummaryBoxPosition();
+            this.setupSummaryBoxResizing();
+        }
+    }
+
+    setupErrorBoundaries() {
+        // Global error handler
+        window.onerror = (message, source, lineno, colno, error) => {
+            this.handleGlobalError(error);
+            return false;
+        };
+
+        // Promise rejection handler
+        window.onunhandledrejection = (event) => {
+            this.handleGlobalError(event.reason);
+        };
+    }
+
+    setupPerformanceMonitoring() {
+        if ('PerformanceObserver' in window) {
+            // Monitor loading performance
+            this.observeLoadingMetrics();
+            
+            // Monitor interaction metrics
+            this.observeInteractionMetrics();
+        }
+    }
+
+    setupServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(registration => {
+                    console.log('ServiceWorker registration successful');
+                })
+                .catch(error => {
+                    console.error('ServiceWorker registration failed:', error);
+                });
+        }
+    }
+
+    setupAnalytics() {
+        // Setup event tracking
+        this.trackUserInteractions();
+        this.trackBookingProgress();
+        this.trackErrors();
+    }
+
+    // Event Handlers
+    handleResponsiveChange(device, matches) {
+        if (matches) {
+            this.ui.updateLayoutForDevice(device);
+        }
+    }
+
+    handleEscapeKey() {
+        const activeModal = document.querySelector('.modal.active');
+        if (activeModal) {
+            this.ui.closeModal(activeModal);
+        }
+    }
+
+    handleGlobalError(error) {
+        console.error('Global error:', error);
+        this.ui.showToast(
+            this.state.language === 'ar' 
+                ? 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى' 
+                : 'An unexpected error occurred. Please try again',
             'error'
         );
     }
 
-    getErrorMessage(error) {
-        // Handle known error types
-        if (error.code === 'NETWORK_ERROR') {
-            return this.translate('Network Error Message');
-        }
-        
-        if (error.code === 'VALIDATION_ERROR') {
-            return this.translate('Validation Error Message');
-        }
-        
-        // Default error message
-        return this.state.currentLanguage === 'ar'
-            ? 'حدث خطأ ما. الرجاء المحاولة مرة أخرى'
-            : 'Something went wrong. Please try again';
+    handleInitializationError(error) {
+        this.ui.showLoading(false);
+        this.ui.showToast(
+            this.state.language === 'ar'
+                ? 'فشل تهيئة النظام. يرجى تحديث الصفحة'
+                : 'System initialization failed. Please refresh the page',
+            'error'
+        );
     }
 
-    // Memory Management
+    // Cleanup
     cleanup() {
-        // Clear all timeouts
-        this.activeTimeouts.forEach(clearTimeout);
-        this.activeTimeouts.clear();
-
+        // Cleanup all managers
+        this.firebase.cleanup();
+        this.bookingManager.cleanup();
+        this.ui.cleanup();
+        
         // Remove event listeners
-        this.removeAllEventListeners();
-
-        // Clear any ongoing animations
-        this.stopAllAnimations();
-
-        // Remove dynamic elements
-        this.removeDynamicElements();
+        this.removeEventListeners();
+        
+        // Clear intervals and timeouts
+        this.clearTimers();
+        
+        // Reset state
+        this.state.reset();
     }
 
-    removeAllEventListeners() {
-        // Cleanup category listeners
-        this.elements.grids.categories?.querySelectorAll('.category-header')
-            .forEach(header => {
-                header.replaceWith(header.cloneNode(true));
-            });
+    // Helper Methods
+    trackUserInteractions() {
+        // Track navigation between steps
+        this.state.subscribe(() => {
+            if (this.state.currentStep) {
+                this.logAnalyticsEvent('step_view', {
+                    step: this.state.currentStep
+                });
+            }
+        });
 
-        // Cleanup service listeners
-        this.elements.grids.categories?.querySelectorAll('.service-card')
-            .forEach(card => {
-                card.replaceWith(card.cloneNode(true));
+        // Track service selections
+        document.querySelectorAll('.service-card').forEach(card => {
+            card.addEventListener('click', () => {
+                this.logAnalyticsEvent('service_select', {
+                    serviceId: card.dataset.serviceId
+                });
             });
-
-        // Cleanup time slot listeners
-        this.elements.grids.timeSlots?.querySelectorAll('.time-slot')
-            .forEach(slot => {
-                slot.replaceWith(slot.cloneNode(true));
-            });
-
-        // Cleanup barber listeners
-        this.elements.grids.barbers?.querySelectorAll('.barber-card')
-            .forEach(card => {
-                card.replaceWith(card.cloneNode(true));
-            });
-    }
-
-    stopAllAnimations() {
-        document.getAnimations().forEach(animation => {
-            animation.cancel();
         });
     }
 
-    removeDynamicElements() {
-        // Remove toast container
-        this.elements.toastContainer?.remove();
-
-        // Remove any screen reader announcer elements
-        document.querySelectorAll('.sr-only[aria-live]')
-            .forEach(el => el.remove());
-    }
-
-    // Performance Optimization
-    debounce(func, wait) {
-        let timeout;
-        return (...args) => {
-            clearTimeout(timeout);
-            timeout = setTimeout(() => func.apply(this, args), wait);
-        };
-    }
-
-    throttle(func, limit) {
-        let inThrottle;
-        return (...args) => {
-            if (!inThrottle) {
-                func.apply(this, args);
-                inThrottle = true;
-                setTimeout(() => inThrottle = false, limit);
-            }
-        };
-    }
-
-    // Language and Translation
-    getTranslations() {
-        return {
-            'Network Error Message': {
-                ar: 'لا يمكن الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت الخاص بك',
-                en: 'Unable to connect to server. Please check your internet connection'
-            },
-            'Validation Error Message': {
-                ar: 'يرجى التحقق من صحة جميع الحقول المطلوبة',
-                en: 'Please check all required fields'
-            },
-            // Add more translations as needed
-        };
-    }
-
-    translate(key) {
-        const translations = this.getTranslations();
-        return translations[key]?.[this.state.currentLanguage] || key;
+    logAnalyticsEvent(eventName, params = {}) {
+        // Implementation depends on analytics service being used
+        console.log('Analytics Event:', eventName, params);
     }
 }
 
-// Export the UIManager class
-export { UIManager };
+// Initialize the application
+const app = new BookingApplication();
+
+document.addEventListener('DOMContentLoaded', () => {
+    app.initialize().catch(error => {
+        console.error('Failed to initialize application:', error);
+    });
+});
+
+// Handle cleanup on page unload
+window.addEventListener('unload', () => {
+    app.cleanup();
+});
+
+export default BookingApplication;
