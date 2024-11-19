@@ -936,9 +936,15 @@ class BookingManager {
     }
 
     async initializeBarbers() {
+    try {
         const barbers = await this.firebase.getBarbers();
         this.state.setState({ barbers: new Map(Object.entries(barbers)) });
+        return barbers;
+    } catch (error) {
+        console.error('Error initializing barbers:', error);
+        throw error;
     }
+}
 
     initializeCalendar() {
         const datePickerElement = this.ui.elements.datePicker;
