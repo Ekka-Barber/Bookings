@@ -935,9 +935,10 @@ class BookingManager {
         this.ui.renderCategories(categories);
     }
 
-    async initializeBarbers() {
-        const barbers = await this.firebase.getBarbers();
-        thisI'll now provide the improved JavaScript file for the Ekka Barbershop web application.
+async initializeBarbers() {
+    const barbers = await this.firebase.getBarbers();
+    this.state.setState({ barbers: new Map(Object.entries(barbers)) });
+}
 
 
 
