@@ -1,5 +1,19 @@
 // ui-manager.js
 class UIManager {
+
+    handleLogoDirection() {
+        const logo = document.querySelector('.site-logo');
+        if (!logo) return;
+
+        const isRTL = this.state.language === 'ar';
+        const logoSrc = isRTL ? 
+            logo.dataset.logoRtl : 
+            logo.dataset.logoLtr;
+
+        if (logoSrc) {
+            logo.src = logoSrc;
+        }
+    }
     constructor(state, firebaseService) {
         this.state = state;
         this.firebase = firebaseService;
@@ -118,7 +132,8 @@ class UIManager {
 
     // UI Update Methods
     updateUI() {
-        this.updateSteps();
+
+        this.handleLogoDirection();  // Added for logo direction        this.updateSteps();
         this.updateNavigationButtons();
         this.updateSummary();
         this.updateLanguageButtons();
