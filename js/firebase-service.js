@@ -39,7 +39,22 @@ class FirebaseService {
         this.cache = new Map();
     }
 
+
     async initializeFirebase() {
+        try {
+            // Use the imported Firebase functions
+            if (!window.firebase?.apps?.length) {
+                const app = window.initializeApp(config.firebase);
+                this.db = window.getDatabase(app);
+            }
+            await this.testConnection();
+            this.setupConnectionMonitoring();
+            console.log('Firebase initialized successfully');
+        } catch (error) {
+            console.error('Firebase initialization failed:', error);
+            throw new Error('Failed to initialize Firebase');
+        }
+    }
         try {
             if (!firebase.apps.length) {
                 firebase.initializeApp(CONFIG.firebase);
