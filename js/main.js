@@ -1,8 +1,9 @@
 // main.js
-import { firebaseService } from './firebase-service.js';  // Add .js extension
-import { state } from './state.js';                      // Add .js extension
-import { uiManager } from './ui-manager.js';             // Add .js extension
-import { bookingManager } from './booking-manager.js';    // Add .js extension
+import { config } from './config.js';
+import { firebaseService } from './firebase-service.js';
+import { state } from './state.js';
+import { uiManager } from './ui-manager.js';
+import { bookingManager } from './booking-manager.js';
 
 class BookingApplication {
     constructor() {
