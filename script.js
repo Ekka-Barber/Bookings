@@ -84,17 +84,17 @@ class FirebaseService {
         }
     }
 
-    async testConnection() {
-        try {
-            // Test connection by reading categories path
-            const testRef = this.firebase.ref(this.db, 'categories');
-            await this.firebase.get(testRef);
-            return true;
-        } catch (error) {
-            console.error('Connection test failed:', error);
-            throw error;
-        }
+async testConnection() {
+    try {
+        // Test connection by reading categories path
+        const testRef = this.firebase.ref(this.db, 'categories');
+        const snapshot = await this.firebase.get(testRef);
+        return true;
+    } catch (error) {
+        console.error('Connection test failed:', error);
+        throw error;
     }
+}
 
     setupConnectionMonitoring() {
         try {
@@ -1217,10 +1217,10 @@ class BookingManager {
 class BookingApplication {
     constructor() {
         this.config = CONFIG;
-        this.firebase = new FirebaseService();
         this.state = new BookingState();
-        this.ui = null; // Will be initialized after Firebase
-        this.bookingManager = null; // Will be initialized after UI
+        this.ui = new UIManager(this.state, null); // Initialize UI first, without Firebase
+        this.firebase = null;
+        this.bookingManager = null;
         this.initializationComplete = false;
     }
 
@@ -1228,220 +1228,110 @@ class BookingApplication {
         try {
             console.log('Initializing Booking Application...');
             
-            // Show loading state early
-            this.showLoading(true);
+            // Initialize UI first - this should work regardless of Firebase
+            await this.initializeUI();
 
-            // Initialize Firebase first
+            // Then try Firebase
             await this.initializeFirebase();
 
-            // Then initialize UI and other components
-            await this.initializeComponents();
+            // Then initialize booking manager if Firebase is available
+            if (this.firebase) {
+                await this.initializeBookingManager();
+            }
 
-            // Load initial data
-            await this.loadInitialData();
-
-            // Setup remaining features
-            this.setupAdditionalFeatures();
-            
             this.initializationComplete = true;
             console.log('Booking Application initialized successfully');
-            this.showLoading(false);
             
         } catch (error) {
-            console.error('Failed to initialize Booking Application:', error);
+            console.error('Failed to initialize Firebase:', error);
+            // Show error but don't prevent the app from loading
             this.handleInitializationError(error);
+        } finally {
+            // Hide loading overlay even if there were errors
+            this.ui.showLoading(false);
         }
     }
 
-    showLoading(show) {
-        const loadingOverlay = document.querySelector('.loading-overlay');
-        if (loadingOverlay) {
-            loadingOverlay.classList.toggle('active', show);
+    async initializeUI() {
+        try {
+            await this.ui.initializeElements();
+            this.setupLanguageSwitching();
+            console.log('UI initialized successfully');
+        } catch (error) {
+            console.error('UI initialization failed:', error);
+            throw error;
         }
+    }
+
+    setupLanguageSwitching() {
+        const languageButtons = document.querySelectorAll('.language-option');
+        languageButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const lang = button.dataset.lang;
+                this.state.setLanguage(lang);
+                
+                // Update active state
+                languageButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                // Update all translatable elements
+                this.updatePageLanguage(lang);
+            });
+        });
+    }
+
+    updatePageLanguage(lang) {
+        // Update all elements with data-ar and data-en attributes
+        document.querySelectorAll('[data-ar][data-en]').forEach(element => {
+            element.textContent = element.dataset[lang];
+        });
+
+        // Update document direction
+        document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+        document.documentElement.lang = lang;
     }
 
     async initializeFirebase() {
         try {
+            this.firebase = new FirebaseService();
             await this.firebase.initializeFirebase();
+            
+            // Update UI reference with Firebase
+            this.ui.firebase = this.firebase;
+            
             console.log('Firebase initialized successfully');
         } catch (error) {
             console.error('Firebase initialization failed:', error);
-            throw new Error('Failed to initialize Firebase: ' + error.message);
+            // Don't throw - allow app to work without Firebase
+            this.firebase = null;
         }
     }
 
-    async initializeComponents() {
-        try {
-            // Initialize UI
-            this.ui = new UIManager(this.state, this.firebase);
-            await this.ui.initializeElements();
+    async initializeBookingManager() {
+        if (!this.firebase) return;
 
-            // Initialize Booking Manager
+        try {
             this.bookingManager = new BookingManager(this.state, this.firebase, this.ui);
-            
-            console.log('Components initialized successfully');
+            await this.bookingManager.initialize();
+            console.log('Booking Manager initialized successfully');
         } catch (error) {
-            console.error('Component initialization failed:', error);
-            throw new Error('Failed to initialize components: ' + error.message);
-        }
-    }
-
-    async loadInitialData() {
-        try {
-            const [categories, barbers] = await Promise.all([
-                this.firebase.getCategories(),
-                this.firebase.getBarbers()
-            ]);
-
-            this.state.setState({ 
-                categories: new Map(Object.entries(categories)),
-                barbers: new Map(Object.entries(barbers))
-            });
-
-            this.state.loadPersistedState();
-            console.log('Initial data loaded successfully');
-        } catch (error) {
-            console.error('Error loading initial data:', error);
-            throw new Error('Failed to load initial data: ' + error.message);
-        }
-    }
-
-    setupAdditionalFeatures() {
-        this.setupErrorHandling();
-        this.setupEventListeners();
-        this.setupServiceWorker();
-        this.setupAnalytics();
-    }
-
-    setupErrorHandling() {
-        window.onerror = (message, source, lineno, colno, error) => {
-            this.handleError('Runtime error', error);
-            return false;
-        };
-
-        window.onunhandledrejection = (event) => {
-            this.handleError('Unhandled promise rejection', event.reason);
-        };
-    }
-
-    setupEventListeners() {
-        // Connection status listener
-        document.addEventListener('connection-status', (event) => {
-            const { status, message } = event.detail;
-            if (status === 'disconnected' && this.ui) {
-                this.ui.showToast(message, 'warning');
-            }
-        });
-
-        // Responsive layout listeners
-        const breakpoints = {
-            mobile: window.matchMedia('(max-width: 767px)'),
-            tablet: window.matchMedia('(min-width: 768px) and (max-width: 1023px)'),
-            desktop: window.matchMedia('(min-width: 1024px)')
-        };
-
-        Object.entries(breakpoints).forEach(([device, query]) => {
-            query.addListener(e => this.handleResponsiveChange(device, e.matches));
-            this.handleResponsiveChange(device, query.matches);
-        });
-    }
-
-    handleResponsiveChange(device, matches) {
-        if (matches) {
-            document.body.dataset.device = device;
-            this.ui?.updateLayoutForDevice?.(device);
-        }
-    }
-
-    setupServiceWorker() {
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/service-worker.js')
-                .then(registration => {
-                    console.log('ServiceWorker registration successful');
-                })
-                .catch(error => {
-                    console.error('ServiceWorker registration failed:', error);
-                });
-        }
-    }
-
-    setupAnalytics() {
-        if (typeof gtag === 'function') {
-            this.trackUserInteractions();
-            this.trackBookingProgress();
-            this.trackErrors();
-        }
-    }
-
-    trackUserInteractions() {
-        document.addEventListener('click', (e) => {
-            const target = e.target.closest('button, a, .interactive-element');
-            if (target) {
-                gtag('event', 'user_interaction', {
-                    element: target.tagName,
-                    id: target.id,
-                    class: target.className
-                });
-            }
-        });
-    }
-
-    trackBookingProgress() {
-        this.state.subscribe(() => {
-            gtag('event', 'booking_step_change', {
-                step: this.state.currentStep,
-                services_selected: this.state.selectedServices.size,
-                date_selected: !!this.state.selectedDate,
-                barber_selected: !!this.state.selectedBarber
-            });
-        });
-    }
-
-    trackErrors() {
-        window.addEventListener('error', (e) => {
-            gtag('event', 'error', {
-                error_type: 'runtime',
-                error_message: e.message,
-                error_location: `${e.filename}:${e.lineno}:${e.colno}`
-            });
-        });
-    }
-
-    handleError(context, error) {
-        console.error(`${context}:`, error);
-        
-        if (this.ui) {
-            const message = this.state.language === 'ar' 
-                ? 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى'
-                : 'An unexpected error occurred. Please try again';
-            
-            this.ui.showToast(message, 'error');
+            console.error('Booking Manager initialization failed:', error);
+            this.bookingManager = null;
         }
     }
 
     handleInitializationError(error) {
-        this.showLoading(false);
-        
         const message = this.state.language === 'ar'
-            ? 'فشل في تحميل التطبيق. يرجى تحديث الصفحة أو المحاولة لاحقًا'
-            : 'Failed to load the application. Please refresh or try again later';
+            ? 'جاري محاولة الاتصال بالخادم...'
+            : 'Trying to connect to server...';
 
-        // Show error message
-        if (this.ui) {
-            this.ui.showToast(message, 'error');
-        } else {
-            alert(message);
-        }
+        this.ui.showToast(message, 'warning', 10000);
     }
 
     cleanup() {
         this.firebase?.cleanup();
         this.ui?.cleanup();
         this.bookingManager?.cleanup();
-        
-        // Remove event listeners
-        window.removeEventListener('error', this.trackErrors);
-        document.removeEventListener('click', this.trackUserInteractions);
     }
 }
 
