@@ -8,7 +8,7 @@
 </head>
 <body>
    <div class="language-switcher">
-       <button class="language-option" data-lang="ar" aria-label="Switch to Arabic">عربي</button>
+       <button class="language-option active" data-lang="ar" aria-label="Switch to Arabic">عربي</button>
        <button class="language-option" data-lang="en" aria-label="Switch to English">English</button>
    </div>
 
@@ -17,7 +17,7 @@
            <div class="logo-container">
                <img src="logo.png" alt="Ekka Barbershop" class="site-logo">
            </div>
-           <h1 class="main-title" data-title-ar="حجز موعد في صالون إكه" data-title-en="Book Appointment at Ekka Barbershop"></h1>
+           <h1 class="main-title" data-title-ar="حجز موعد في صالون إكه" data-title-en="Book Appointment at Ekka Barbershop">حجز موعد في صالون إكه</h1>
        </header>
 
        <div class="progress-bar" data-current-step="1">
@@ -44,62 +44,54 @@
 
        <main class="booking-steps">
            <section id="step-1" class="booking-step active">
-               <h2>اختر الخدمات</h2>
+               <h2 data-ar="اختر الخدمات" data-en="Choose Services">اختر الخدمات</h2>
                <div class="categories-services-grid" role="list"></div>
            </section>
 
            <section id="step-2" class="booking-step">
-               <h2>اختر التاريخ والوقت</h2>
+               <h2 data-ar="اختر التاريخ والوقت" data-en="Choose Date & Time">اختر التاريخ والوقت</h2>
                <div class="date-picker-container">
                    <input type="date" id="appointment-date" class="date-picker" aria-label="Select appointment date">
                </div>
                <div class="time-slots-container">
-                   <h3>الأوقات المتاحة</h3>
+                   <h3 data-ar="الأوقات المتاحة" data-en="Available Times">الأوقات المتاحة</h3>
                    <div class="time-slots-grid"></div>
-                   <div class="time-period">
-                       <h4>صباحاً</h4>
-                       <div class="time-slots-grid morning-slots"></div>
-                   </div>
-                   <div class="time-period">
-                       <h4>مساءً</h4>
-                       <div class="time-slots-grid afternoon-slots"></div>
-                   </div>
                </div>
            </section>
 
            <section id="step-3" class="booking-step">
-               <h2>اختر الحلاق</h2>
+               <h2 data-ar="اختر الحلاق" data-en="Choose Barber">اختر الحلاق</h2>
                <div class="barbers-grid"></div>
            </section>
 
            <section id="step-4" class="booking-step">
-               <h2>تأكيد الحجز</h2>
+               <h2 data-ar="تأكيد الحجز" data-en="Confirm Booking">تأكيد الحجز</h2>
                <form id="booking-form" class="confirmation-form">
                    <div class="form-group">
-                       <label for="customer-name">الاسم</label>
+                       <label for="customer-name" data-ar="الاسم" data-en="Name">الاسم</label>
                        <input type="text" id="customer-name" required 
                               minlength="3" 
                               aria-describedby="name-hint">
-                       <small id="name-hint" class="input-hint">الاسم يجب أن يكون 3 أحرف على الأقل</small>
+                       <small id="name-hint" class="input-hint" data-ar="الاسم يجب أن يكون 3 أحرف على الأقل" data-en="Name must be at least 3 characters">الاسم يجب أن يكون 3 أحرف على الأقل</small>
                    </div>
                    
                    <div class="form-group">
-                       <label for="customer-phone">رقم الهاتف</label>
+                       <label for="customer-phone" data-ar="رقم الهاتف" data-en="Phone Number">رقم الهاتف</label>
                        <input type="tel" id="customer-phone" 
                               pattern="05[0-9]{8}" 
                               required 
                               aria-describedby="phone-hint">
-                       <small id="phone-hint" class="input-hint">يجب أن يبدأ الرقم بـ 05 ويتكون من 10 أرقام</small>
+                       <small id="phone-hint" class="input-hint" data-ar="يجب أن يبدأ الرقم بـ 05 ويتكون من 10 أرقام" data-en="Must start with 05 and be 10 digits">يجب أن يبدأ الرقم بـ 05 ويتكون من 10 أرقام</small>
                    </div>
 
-                   <button type="submit" class="submit-btn">تأكيد الحجز</button>
+                   <button type="submit" class="submit-btn" data-ar="تأكيد الحجز" data-en="Confirm Booking">تأكيد الحجز</button>
                </form>
            </section>
        </main>
 
        <div class="navigation-buttons">
-           <button class="prev-btn" disabled aria-label="Previous step">السابق</button>
-           <button class="next-btn" disabled aria-label="Next step">التالي</button>
+           <button class="prev-btn" disabled aria-label="Previous step" data-ar="السابق" data-en="Previous">السابق</button>
+           <button class="next-btn" disabled aria-label="Next step" data-ar="التالي" data-en="Next">التالي</button>
        </div>
 
        <aside class="booking-summary">
@@ -107,7 +99,7 @@
                <span class="toggle-icon"></span>
            </button>
            <div class="summary-header">
-               <h3>ملخص الحجز</h3>
+               <h3 data-ar="ملخص الحجز" data-en="Booking Summary">ملخص الحجز</h3>
                <span class="total-price"></span>
            </div>
            <div class="summary-content">
@@ -120,7 +112,7 @@
    
    <div class="loading-overlay" aria-hidden="true">
        <div class="loader" role="progressbar"></div>
-       <div class="loading-text">جاري التحميل...</div>
+       <div class="loading-text" data-ar="جاري التحميل..." data-en="Loading...">جاري التحميل...</div>
    </div>
 
    <!-- Firebase SDK -->
