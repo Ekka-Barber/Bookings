@@ -3,33 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>صالون إكه للحلاقة | Ekka Barbershop</title>
-    
-    <link rel="icon" type="image/png" href="favicon.png">
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <title>Ekka Barbershop</title>
     <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.min.css">
 </head>
 <body>
     <div class="language-switcher">
-        <button type="button" class="language-option" data-lang="ar">عربي</button>
-        <button type="button" class="language-option" data-lang="en">English</button>
+        <button class="language-btn" data-lang="ar">عربي</button>
+        <button class="language-btn" data-lang="en">English</button>
     </div>
 
     <div class="container">
         <header class="site-header">
             <div class="logo-container">
-                <img src="logo.png" 
-                     alt="Ekka Barbershop" 
-                     class="site-logo"
-                     data-logo-ltr="logo.png"
-                     data-logo-rtl="logo.png">
+                <img src="logo.png" alt="Ekka Barbershop" class="site-logo">
             </div>
-            <h1 class="main-title" 
-                data-title-ar="حجز موعد في صالون إكه" 
-                data-title-en="Book Appointment at Ekka Barbershop">
-            </h1>
+            <h1 class="main-title" data-title-ar="حجز موعد في صالون إكه" data-title-en="Book Appointment at Ekka Barbershop"></h1>
         </header>
 
         <div class="progress-bar" data-current-step="1">
@@ -59,15 +47,17 @@
                 <h2>اختر الخدمات</h2>
                 <div class="categories-services-grid" role="list"></div>
             </section>
+
             <section id="step-2" class="booking-step">
                 <h2>اختر التاريخ والوقت</h2>
-                <input type="text" id="appointment-date" placeholder="اختر التاريخ">
                 <div class="time-slots-grid"></div>
             </section>
+
             <section id="step-3" class="booking-step">
                 <h2>اختر الحلاق</h2>
                 <div class="barbers-grid"></div>
             </section>
+
             <section id="step-4" class="booking-step">
                 <h2>تأكيد الحجز</h2>
                 <form id="booking-form">
@@ -79,27 +69,28 @@
         </main>
 
         <div class="navigation-buttons">
-            <button class="prev-btn">السابق</button>
-            <button class="next-btn">التالي</button>
+            <button class="prev-btn" disabled>السابق</button>
+            <button class="next-btn" disabled>التالي</button>
         </div>
 
-        <div class="booking-summary">
-            <button class="toggle-summary">ملخص الحجز</button>
+        <aside class="booking-summary">
+            <h3>ملخص الحجز</h3>
             <div class="summary-content"></div>
-        </div>
+        </aside>
     </div>
 
     <div class="toast-container" role="alert" aria-live="polite"></div>
-
     <div class="loading-overlay" aria-hidden="true">
         <div class="loader" role="progressbar"></div>
         <div class="loading-text">جاري التحميل...</div>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-database.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ar.js"></script>
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.2/firebase-app.js';
+        import { getDatabase } from 'https://www.gstatic.com/firebasejs/10.7.2/firebase-database.js';
+        window.firebase = { initializeApp, getDatabase };
+    </script>
     <script src="script.js"></script>
 </body>
 </html>
