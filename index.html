@@ -8,8 +8,8 @@
 </head>
 <body>
    <div class="language-switcher">
-       <button class="language-btn" data-lang="ar" aria-label="Switch to Arabic">عربي</button>
-       <button class="language-btn" data-lang="en" aria-label="Switch to English">English</button>
+       <button class="language-option" data-lang="ar" aria-label="Switch to Arabic">عربي</button>
+       <button class="language-option" data-lang="en" aria-label="Switch to English">English</button>
    </div>
 
    <div class="container">
@@ -55,6 +55,7 @@
                </div>
                <div class="time-slots-container">
                    <h3>الأوقات المتاحة</h3>
+                   <div class="time-slots-grid"></div>
                    <div class="time-period">
                        <h4>صباحاً</h4>
                        <div class="time-slots-grid morning-slots"></div>
@@ -116,8 +117,6 @@
            </div>
        </aside>
    </div>
-
-   <div class="toast-container" role="alert" aria-live="polite"></div>
    
    <div class="loading-overlay" aria-hidden="true">
        <div class="loader" role="progressbar"></div>
