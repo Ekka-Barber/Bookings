@@ -50,21 +50,23 @@ const formatDuration = (minutes) => {
 // Firebase Service
 class FirebaseService {
     constructor() {
+        this.app = null;
         this.db = null;
         this.activeSubscriptions = new Map();
         this.retryAttempts = 3;
         this.retryDelay = 1000;
         this.cache = new Map();
+        this.firebase = window.firebaseModules;
     }
 
     async initializeFirebase() {
         try {
-            if (!window.firebase) {
+            if (!this.firebase) {
                 throw new Error('Firebase SDK not loaded');
             }
             
-            const app = window.firebase.initializeApp(CONFIG.firebase);
-            this.db = window.firebase.getDatabase(app);
+            this.app = this.firebase.initializeApp(CONFIG.firebase);
+            this.db = this.firebase.getDatabase(this.app);
 
             await this.testConnection();
             this.setupConnectionMonitoring();
@@ -76,21 +78,19 @@ class FirebaseService {
     }
 
     async testConnection() {
-        let attempts = 0;
-        while (attempts < this.retryAttempts) {
-            try {
-                await this.db.ref('.info/connected').once('value');
-                return true;
-            } catch (error) {
-                attempts++;
-                if (attempts === this.retryAttempts) throw error;
-                await new Promise(resolve => setTimeout(resolve, this.retryDelay * attempts));
-            }
+        try {
+            const connectedRef = this.firebase.ref(this.db, '.info/connected');
+            const snapshot = await this.firebase.get(connectedRef);
+            return snapshot.val() === true;
+        } catch (error) {
+            console.error('Connection test failed:', error);
+            throw error;
         }
     }
 
     setupConnectionMonitoring() {
-        this.db.ref('.info/connected').on('value', (snapshot) => {
+        const connectedRef = this.firebase.ref(this.db, '.info/connected');
+        this.firebase.onValue(connectedRef, (snapshot) => {
             const isConnected = snapshot.val() === true;
             document.dispatchEvent(new CustomEvent('connection-status', {
                 detail: { 
@@ -110,7 +110,8 @@ class FirebaseService {
         }
 
         try {
-            const snapshot = await this.db.ref(path).once('value');
+            const dbRef = this.firebase.ref(this.db, path);
+            const snapshot = await this.firebase.get(dbRef);
             const data = snapshot.val();
             
             this.cache.set(cacheKey, {
@@ -130,10 +131,15 @@ class FirebaseService {
     }
 
     async getBarbers() {
-        const barbers = await this.fetchWithCache('barbers', CONFIG.cache.duration.barbers);
-        return Object.entries(barbers)
-            .filter(([_, barber]) => barber.active)
-            .reduce((acc, [id, barber]) => ({...acc, [id]: barber}), {});
+        try {
+            const barbers = await this.fetchWithCache('barbers', CONFIG.cache.duration.barbers);
+            return Object.entries(barbers)
+                .filter(([_, barber]) => barber.active)
+                .reduce((acc, [id, barber]) => ({...acc, [id]: barber}), {});
+        } catch (error) {
+            console.error('Error fetching barbers:', error);
+            throw error;
+        }
     }
 
     subscribeToBarberAvailability(barberId, date, callback) {
@@ -142,20 +148,20 @@ class FirebaseService {
 
         this.unsubscribe(subscriptionKey);
 
-        const subscription = this.db.ref('bookings')
-            .orderByChild('barberId')
-            .equalTo(barberId)
-            .on('value', snapshot => {
-                const bookings = snapshot.val() || {};
-                const unavailableTimes = this.processBookingsForAvailability(bookings, dateStr);
-                callback(unavailableTimes);
-            });
+        const bookingsRef = this.firebase.ref(this.db, 'bookings');
+        const bookingsQuery = this.firebase.query(
+            bookingsRef,
+            this.firebase.orderByChild('barberId'),
+            this.firebase.equalTo(barberId)
+        );
 
-        this.activeSubscriptions.set(subscriptionKey, {
-            ref: this.db.ref('bookings'),
-            callback: subscription
+        const unsubscribe = this.firebase.onValue(bookingsQuery, snapshot => {
+            const bookings = snapshot.val() || {};
+            const unavailableTimes = this.processBookingsForAvailability(bookings, dateStr);
+            callback(unavailableTimes);
         });
 
+        this.activeSubscriptions.set(subscriptionKey, unsubscribe);
         return () => this.unsubscribe(subscriptionKey);
     }
 
@@ -175,10 +181,12 @@ class FirebaseService {
 
     async createBooking(bookingData) {
         try {
-            const newBookingRef = await this.db.ref('bookings').push({
+            const bookingsRef = this.firebase.ref(this.db, 'bookings');
+            const newBookingRef = this.firebase.push(bookingsRef);
+            await this.firebase.set(newBookingRef, {
                 ...bookingData,
                 status: 'pending',
-                createdAt: firebase.database.ServerValue.TIMESTAMP
+                createdAt: new Date().toISOString()
             });
             return newBookingRef.key;
         } catch (error) {
@@ -188,17 +196,22 @@ class FirebaseService {
     }
 
     unsubscribe(key) {
-        const subscription = this.activeSubscriptions.get(key);
-        if (subscription) {
-            subscription.ref.off('value', subscription.callback);
+        const unsubscribe = this.activeSubscriptions.get(key);
+        if (unsubscribe) {
+            unsubscribe();
             this.activeSubscriptions.delete(key);
         }
     }
 
     cleanup() {
-        this.activeSubscriptions.forEach((_, key) => this.unsubscribe(key));
+        this.activeSubscriptions.forEach(unsubscribe => unsubscribe());
         this.activeSubscriptions.clear();
-        this.db?.ref('.info/connected').off();
+        
+        if (this.db) {
+            const connectedRef = this.firebase.ref(this.db, '.info/connected');
+            this.firebase.off(connectedRef);
+        }
+        
         this.cache.clear();
     }
 }
@@ -926,11 +939,17 @@ class BookingManager {
     async initialize() {
         try {
             this.ui.showLoading(true);
+            
+            // Initialize Firebase first
+            await this.firebase.initializeFirebase();
+            
+            // Then load data
             await Promise.all([
                 this.initializeCategories(),
                 this.initializeBarbers(),
                 this.initializeCalendar()
             ]);
+            
             this.setupRealTimeUpdates();
             this.ui.showLoading(false);
         } catch (error) {
@@ -940,46 +959,83 @@ class BookingManager {
     }
 
     async initializeCategories() {
-        const categories = await this.firebase.getCategories();
-        this.state.setState({ categories: new Map(Object.entries(categories)) });
-        this.ui.renderCategories(categories);
+        try {
+            const categories = await this.firebase.getCategories();
+            this.state.setState({ categories: new Map(Object.entries(categories)) });
+            this.ui.renderCategories(categories);
+        } catch (error) {
+            console.error('Error initializing categories:', error);
+            throw error;
+        }
     }
 
     async initializeBarbers() {
-    try {
-        const barbers = await this.firebase.getBarbers();
-        this.state.setState({ barbers: new Map(Object.entries(barbers)) });
-        return barbers;
-    } catch (error) {
-        console.error('Error initializing barbers:', error);
-        throw error;
+        try {
+            const barbers = await this.firebase.getBarbers();
+            this.state.setState({ barbers: new Map(Object.entries(barbers)) });
+            return barbers;
+        } catch (error) {
+            console.error('Error initializing barbers:', error);
+            throw error;
+        }
     }
-}
 
     initializeCalendar() {
         const datePickerElement = this.ui.elements.datePicker;
         if (!datePickerElement) return;
 
-        this.flatpickr = flatpickr(datePickerElement, {
+        const options = {
             minDate: 'today',
             maxDate: new Date().fp_incr(30),
             disable: [
-                function(date) {
-                    return this.isDateDisabled(date);
-                }.bind(this)
+                date => this.isDateDisabled(date)
             ],
             locale: this.state.language === 'ar' ? Arabic : English,
-            onChange: this.handleDateChange.bind(this)
-        });
+            onChange: selected => this.handleDateChange(selected)
+        };
+
+        this.flatpickr = datePickerElement._flatpickr || flatpickr(datePickerElement, options);
     }
 
     setupRealTimeUpdates() {
-        this.firebase.subscribeToBookingUpdates((bookings) => {
-            this.updateAvailability(bookings);
+        this.state.barbers.forEach((barber, barberId) => {
+            if (!barber.active) return;
+            
+            const unsubscribe = this.firebase.subscribeToBarberAvailability(
+                barberId,
+                this.state.selectedDate || new Date(),
+                (unavailableTimes) => {
+                    if (this.state.selectedDate) {
+                        this.updateAvailability(unavailableTimes);
+                    }
+                }
+            );
+            
+            this.availabilitySubscriptions.set(barberId, unsubscribe);
         });
+    }
 
-        this.firebase.subscribeToBarberUpdates((barbers) => {
-            this.updateBarberAvailability(barbers);
+    updateAvailability(bookings) {
+        const timeSlots = this.ui.elements.grids.timeSlots?.querySelectorAll('.time-slot') || [];
+        timeSlots.forEach(slot => {
+            const timeStr = slot.dataset.time;
+            const unavailable = this.isTimeSlotUnavailable(timeStr, bookings);
+            slot.classList.toggle('unavailable', unavailable);
+            slot.disabled = unavailable;
+        });
+    }
+
+    isTimeSlotUnavailable(timeStr, bookings) {
+        if (!this.state.selectedDate) return true;
+        
+        const slotTime = new Date(`${this.state.selectedDate}T${timeStr}`);
+        const totalDuration = this.calculateTotalDuration();
+        const slotEnd = new Date(slotTime.getTime() + (totalDuration * 60000));
+
+        return bookings.some(booking => {
+            const bookingStart = new Date(booking.start);
+            const bookingEnd = new Date(booking.end);
+            return (slotTime < bookingEnd && slotEnd > bookingStart);
         });
     }
 
@@ -992,20 +1048,19 @@ class BookingManager {
     isHoliday(date) {
         const holidays = [
             '2024-12-25',
+            // Add other holiday dates
         ];
-        
         return holidays.includes(date.toISOString().split('T')[0]);
     }
 
     hasAvailableBarbers(date) {
-        const dayOfWeek = date.getDay();
         return Array.from(this.state.barbers.values()).some(barber => {
-            return barber.active && this.isBarberWorkingOnDay(barber, dayOfWeek);
+            return barber.active && this.isBarberWorkingOnDay(barber, date.getDay());
         });
     }
 
     isBarberWorkingOnDay(barber, dayOfWeek) {
-        return barber.workingDays?.[dayOfWeek] !== false;
+        return !barber.workingDays || barber.workingDays[dayOfWeek] !== false;
     }
 
     async handleDateChange(selectedDates) {
@@ -1014,14 +1069,13 @@ class BookingManager {
 
         try {
             this.ui.showLoading(true);
+            const dateStr = selectedDate.toISOString().split('T')[0];
+            this.state.setSelectedDate(dateStr);
             
             const timeSlots = await this.generateTimeSlots(selectedDate);
-            
-            this.state.setSelectedDate(selectedDate.toISOString().split('T')[0]);
             this.ui.renderTimeSlots(timeSlots);
             
-            this.setupAvailabilityMonitoring(selectedDate);
-            
+            this.setupRealTimeUpdates();
         } catch (error) {
             this.handleError(error);
         } finally {
@@ -1031,8 +1085,6 @@ class BookingManager {
 
     async generateTimeSlots(date) {
         const slots = [];
-        const totalDuration = this.calculateTotalDuration();
-
         const [startHour, startMin] = CONFIG.business.workingHours.start.split(':').map(Number);
         const [endHour, endMin] = CONFIG.business.workingHours.end.split(':').map(Number);
 
@@ -1044,162 +1096,38 @@ class BookingManager {
 
         while (currentSlot < endTime) {
             if (currentSlot > new Date()) {
-                const timeString = currentSlot.toTimeString().slice(0, 5);
-                const availability = await this.checkSlotAvailability(currentSlot, totalDuration);
-                
                 slots.push({
-                    time: timeString,
-                    available: availability.available,
-                    barbers: availability.availableBarbers
+                    time: currentSlot.toTimeString().slice(0, 5),
+                    available: true
                 });
             }
-
-            currentSlot = new Date(currentSlot.getTime() + 
-                               (CONFIG.business.timeSlotInterval * 60000));
+            currentSlot = new Date(currentSlot.getTime() + (CONFIG.business.timeSlotInterval * 60000));
         }
 
         return slots;
     }
 
-    async checkSlotAvailability(dateTime, duration) {
-        const availableBarbers = [];
-        let isAvailable = false;
-
-        for (const [barberId, barber] of this.state.barbers) {
-            if (!barber.active) continue;
-
-            const barberAvailable = await this.firebase.checkBarberAvailability(
-                barberId,
-                dateTime.toISOString(),
-                duration
-            );
-
-            if (barberAvailable) {
-                availableBarbers.push(barberId);
-                isAvailable = true;
-            }
-        }
-
-        return {
-            available: isAvailable,
-            availableBarbers
-        };
-    }
-
-    setupAvailabilityMonitoring(date) {
-        this.availabilitySubscriptions.forEach(unsubscribe => unsubscribe());
-        this.availabilitySubscriptions.clear();
-
-        this.state.barbers.forEach((barber, barberId) => {
-            if (!barber.active) return;
-
-            const unsubscribe = this.firebase.subscribeToBarberAvailability(
-                barberId,
-                date,
-                (unavailableTimes) => {
-                    this.updateTimeSlotAvailability(barberId, unavailableTimes);
-                }
-            );
-
-            this.availabilitySubscriptions.set(barberId, unsubscribe);
-        });
-    }
-
-    updateTimeSlotAvailability(barberId, unavailableTimes) {
-        const timeSlots = this.ui.elements.grids.timeSlots.querySelectorAll('.time-slot');
-        const totalDuration = this.calculateTotalDuration();
-
-        timeSlots.forEach(slot => {
-            const timeStr = slot.dataset.time;
-            const dateTime = new Date(`${this.state.selectedDate}T${timeStr}`);
-            const endTime = new Date(dateTime.getTime() + (totalDuration * 60000));
-
-            const isConflict = unavailableTimes.some(period => {
-                return (dateTime < period.end && endTime > period.start);
-            });
-
-            if (isConflict) {
-                slot.dataset.unavailableBarbers = 
-                    (slot.dataset.unavailableBarbers || '') + `${barberId},`;
-                
-                const unavailableBarbers = new Set(slot.dataset.unavailableBarbers.split(','));
-                const activeBarbers = Array.from(this.state.barbers.entries())
-                    .filter(([_, b]) => b.active)
-                    .map(([id]) => id);
-
-                if (unavailableBarbers.size >= activeBarbers.length) {
-                    slot.disabled = true;
-                    slot.classList.add('unavailable');
-                }
-            }
-        });
-    }
-
-    async handleBookingSubmission() {
-        try {
-            if (!this.validateBookingData()) {
-                throw new Error(this.ui.translate('invalid_booking_data'));
-            }
-
-            this.ui.showLoading(true);
-
-            const bookingData = {
-                services: Array.from(this.state.selectedServices.values()),
-                dateTime: this.state.selectedDateTime,
-                barberId: this.state.selectedBarber.id,
-                customerDetails: this.state.customerDetails,
-                totalDuration: this.calculateTotalDuration(),
-                totalPrice: this.calculateTotalPrice(),
-                status: 'pending',
-                createdAt: new Date().toISOString()
-            };
-
-            const bookingId = await this.firebase.createBooking(bookingData);
-            
-            if (bookingId) {
-                await this.sendConfirmation(bookingData);
-                this.state.reset();
-                this.ui.showSuccessMessage();
-            }
-
-        } catch (error) {
-            this.handleError(error);
-        } finally {
-            this.ui.showLoading(false);
-        }
-    }
-
-    validateBookingData() {
-        return (
-            this.state.selectedServices.size > 0 &&
-            this.state.selectedDateTime &&
-            this.state.selectedBarber &&
-            this.state.validateCustomerDetails()
-        );
-    }
-
     calculateTotalDuration() {
         return Array.from(this.state.selectedServices.values())
-            .reduce((total, service) => total + (parseInt(service.duration) || 0), 0);
+            .reduce((total, service) => total + parseInt(service.duration || '0'), 0);
     }
 
     calculateTotalPrice() {
         return Array.from(this.state.selectedServices.values())
-            .reduce((total, service) => total + service.price, 0);
-    }
-
-    async sendConfirmation(bookingData) {
-        console.log('Sending confirmation for booking:', bookingData);
-        // Implement actual confirmation sending logic here
+            .reduce((total, service) => total + (service.price || 0), 0);
     }
 
     handleError(error) {
         console.error('Booking error:', error);
-        this.ui.showToast(error.message, 'error');
+        this.ui.showToast(error.message || 'An unexpected error occurred', 'error');
     }
 
     cleanup() {
-        this.flatpickr?.destroy();
+        if (this.flatpickr) {
+            this.flatpickr.destroy();
+            this.flatpickr = null;
+        }
+
         this.availabilitySubscriptions.forEach(unsubscribe => unsubscribe());
         this.availabilitySubscriptions.clear();
     }
@@ -1224,9 +1152,11 @@ class BookingApplication {
             
             this.ui.showLoading(true);
 
+            // Initialize Firebase first
             await this.firebase.initializeFirebase();
             console.log('Firebase initialized successfully');
 
+            // Then initialize the rest of the application
             await Promise.all([
                 this.loadInitialData(),
                 this.setupLocalizations(),
@@ -1247,11 +1177,15 @@ class BookingApplication {
 
     async loadInitialData() {
         try {
-            const categories = await this.firebase.getCategories();
-            this.state.setState({ categories: new Map(Object.entries(categories)) });
+            const [categories, barbers] = await Promise.all([
+                this.firebase.getCategories(),
+                this.firebase.getBarbers()
+            ]);
 
-            const barbers = await this.firebase.getBarbers();
-            this.state.setState({ barbers: new Map(Object.entries(barbers)) });
+            this.state.setState({ 
+                categories: new Map(Object.entries(categories)),
+                barbers: new Map(Object.entries(barbers))
+            });
 
             this.state.loadPersistedState();
 
@@ -1293,7 +1227,7 @@ class BookingApplication {
     }
 
     async initializeUI() {
-        this.ui.initializeElements();
+        await this.ui.initializeElements();
         this.setupResponsiveUI();
         await this.initializeBookingSteps();
         this.setupKeyboardNavigation();
@@ -1308,21 +1242,48 @@ class BookingApplication {
         };
 
         Object.entries(breakpoints).forEach(([device, query]) => {
-            query.addListener((e) => this.handleResponsiveChange(device, e.matches));
+            query.addListener(e => this.handleResponsiveChange(device, e.matches));
             this.handleResponsiveChange(device, query.matches);
         });
     }
 
+    handleResponsiveChange(device, matches) {
+        if (matches) {
+            document.body.dataset.device = device;
+            this.ui.updateLayoutForDevice?.(device);
+        }
+    }
+
     async initializeBookingSteps() {
         const steps = [
-            this.initializeServicesStep.bind(this),
-            this.initializeDateTimeStep.bind(this),
-            this.initializeBarberStep.bind(this),
-            this.initializeConfirmationStep.bind(this)
+            'services',
+            'datetime',
+            'barber',
+            'confirmation'
         ];
 
-        for (let i = 0; i < steps.length; i++) {
-            await steps[i]();
+        for (const step of steps) {
+            await this.initializeStep(step);
+        }
+    }
+
+    async initializeStep(step) {
+        const stepElement = document.getElementById(`step-${step}`);
+        if (!stepElement) return;
+
+        switch (step) {
+            case 'services':
+                await this.ui.renderServices();
+                break;
+            case 'datetime':
+                this.bookingManager.initializeCalendar();
+                break;
+            case 'barber':
+                await this.ui.renderBarbers();
+                break;
+            case 'confirmation':
+                this.ui.setupConfirmationForm();
+                break;
         }
     }
 
@@ -1336,12 +1297,84 @@ class BookingApplication {
         this.setupFocusTraps();
     }
 
+    setupFocusTraps() {
+        const focusableElements = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+        const modals = document.querySelectorAll('.modal');
+
+        modals.forEach(modal => {
+            const focusableContent = modal.querySelectorAll(focusableElements);
+            const firstFocusable = focusableContent[0];
+            const lastFocusable = focusableContent[focusableContent.length - 1];
+
+            modal.addEventListener('keydown', (e) => {
+                if (e.key === 'Tab') {
+                    if (e.shiftKey && document.activeElement === firstFocusable) {
+                        e.preventDefault();
+                        lastFocusable.focus();
+                    } else if (!e.shiftKey && document.activeElement === lastFocusable) {
+                        e.preventDefault();
+                        firstFocusable.focus();
+                    }
+                }
+            });
+        });
+    }
+
+    handleEscapeKey() {
+        const activeModal = document.querySelector('.modal.active');
+        if (activeModal) {
+            this.ui.closeModal(activeModal);
+        }
+    }
+
     initializeSummaryBox() {
-        const summaryBox = this.ui.elements.summary.container;
+        const summaryBox = document.querySelector('.booking-summary');
         if (summaryBox) {
             this.setupSummaryBoxPosition();
             this.setupSummaryBoxResizing();
         }
+    }
+
+    setupSummaryBoxPosition() {
+        const summary = document.querySelector('.booking-summary');
+        if (!summary) return;
+
+        const updatePosition = () => {
+            const rect = document.querySelector('.container').getBoundingClientRect();
+            const right = window.innerWidth - rect.right;
+            summary.style.right = `${right}px`;
+        };
+
+        updatePosition();
+        window.addEventListener('resize', updatePosition);
+    }
+
+    setupSummaryBoxResizing() {
+        const resizer = document.createElement('div');
+        resizer.className = 'summary-resizer';
+        document.querySelector('.booking-summary')?.appendChild(resizer);
+
+        let startX, startWidth;
+
+        const startResize = (e) => {
+            startX = e.clientX;
+            startWidth = parseInt(document.documentElement.style.getPropertyValue('--summary-width'), 10);
+            document.addEventListener('mousemove', resize);
+            document.addEventListener('mouseup', stopResize);
+        };
+
+        const resize = (e) => {
+            const diff = startX - e.clientX;
+            const newWidth = startWidth + diff;
+            document.documentElement.style.setProperty('--summary-width', `${newWidth}px`);
+        };
+
+        const stopResize = () => {
+            document.removeEventListener('mousemove', resize);
+            document.removeEventListener('mouseup', stopResize);
+        };
+
+        resizer.addEventListener('mousedown', startResize);
     }
 
     setupErrorBoundaries() {
@@ -1355,11 +1388,24 @@ class BookingApplication {
         };
     }
 
-    setupPerformanceMonitoring() {
-        if ('PerformanceObserver' in window) {
-            this.observeLoadingMetrics();
-            this.observeInteractionMetrics();
-        }
+    handleGlobalError(error) {
+        console.error('Global error:', error);
+        this.ui.showToast(
+            this.state.language === 'ar' 
+                ? 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى'
+                : 'An unexpected error occurred. Please try again',
+            'error'
+        );
+    }
+
+    handleInitializationError(error) {
+        this.ui.showLoading(false);
+        this.ui.showToast(
+            this.state.language === 'ar'
+                ? 'فشل في تحميل التطبيق. يرجى تحديث الصفحة أو المحاولة لاحقًا'
+                : 'Failed to load the application. Please refresh or try again later',
+            'error'
+        );
     }
 
     setupServiceWorker() {
@@ -1378,59 +1424,6 @@ class BookingApplication {
         this.trackUserInteractions();
         this.trackBookingProgress();
         this.trackErrors();
-    }
-
-    handleResponsiveChange(device, matches) {
-        if (matches) {
-            this.ui.updateLayoutForDevice(device);
-        }
-    }
-
-    handleEscapeKey() {
-        const activeModal = document.querySelector('.modal.active');
-        if (activeModal) {
-            this.ui.closeModal(activeModal);
-        }
-    }
-
-    handleGlobalError(error) {
-        console.error('Global error:', error);
-        this.ui.showToast(
-            this.state.language === 'ar' 
-                ? 'حدث خطأ غير متوقع.حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى' 
-                : 'An unexpected error occurred. Please try again',
-            'error'
-        );
-    }
-
-    handleInitializationError(error) {
-        this.ui.showLoading(false);
-        this.ui.showToast(
-            this.state.language === 'ar' 
-                ? 'فشل في تحميل التطبيق. يرجى تحديث الصفحة أو المحاولة لاحقًا' 
-                : 'Failed to load the application. Please refresh or try again later',
-            'error'
-        );
-    }
-
-    observeLoadingMetrics() {
-        const observer = new PerformanceObserver((list) => {
-            for (const entry of list.getEntries()) {
-                console.log(`${entry.name}: ${entry.startTime}ms`);
-            }
-        });
-        observer.observe({ entryTypes: ['navigation', 'resource', 'paint'] });
-    }
-
-    observeInteractionMetrics() {
-        const observer = new PerformanceObserver((list) => {
-            for (const entry of list.getEntries()) {
-                if (entry.interactionId) {
-                    console.log(`Interaction took ${entry.duration}ms`);
-                }
-            }
-        });
-        observer.observe({ type: 'event', buffered: true });
     }
 
     trackUserInteractions() {
@@ -1478,10 +1471,11 @@ class BookingApplication {
         this.firebase.cleanup();
         this.ui.cleanup();
         this.bookingManager.cleanup();
+        window.removeEventListener('resize', this.setupSummaryBoxPosition);
     }
 }
 
-// Application Initialization
+// Initialize application when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     const app = new BookingApplication();
     app.initialize().catch(error => {
