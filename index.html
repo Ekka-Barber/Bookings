@@ -1,110 +1,159 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ekka Barbershop</title>
-    <link rel="stylesheet" href="styles.css">
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Ekka Barbershop</title>
+   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="language-switcher">
-        <button class="language-btn" data-lang="ar">عربي</button>
-        <button class="language-btn" data-lang="en">English</button>
-    </div>
+   <div class="language-switcher">
+       <button class="language-btn" data-lang="ar" aria-label="Switch to Arabic">عربي</button>
+       <button class="language-btn" data-lang="en" aria-label="Switch to English">English</button>
+   </div>
 
-    <div class="container">
-        <header class="site-header">
-            <div class="logo-container">
-                <img src="logo.png" alt="Ekka Barbershop" class="site-logo">
-            </div>
-            <h1 class="main-title" data-title-ar="حجز موعد في صالون إكه" data-title-en="Book Appointment at Ekka Barbershop"></h1>
-        </header>
+   <div class="container">
+       <header class="site-header">
+           <div class="logo-container">
+               <img src="logo.png" alt="Ekka Barbershop" class="site-logo">
+           </div>
+           <h1 class="main-title" data-title-ar="حجز موعد في صالون إكه" data-title-en="Book Appointment at Ekka Barbershop"></h1>
+       </header>
 
-        <div class="progress-bar" data-current-step="1">
-            <div class="progress-line"></div>
-            <div class="progress-steps">
-                <div class="progress-step active" data-step="1">
-                    <div class="step-circle">1</div>
-                    <div class="step-label" data-ar="الخدمات" data-en="Services">الخدمات</div>
-                </div>
-                <div class="progress-step" data-step="2">
-                    <div class="step-circle">2</div>
-                    <div class="step-label" data-ar="التاريخ والوقت" data-en="Date & Time">التاريخ والوقت</div>
-                </div>
-                <div class="progress-step" data-step="3">
-                    <div class="step-circle">3</div>
-                    <div class="step-label" data-ar="الحلاق" data-en="Barber">الحلاق</div>
-                </div>
-                <div class="progress-step" data-step="4">
-                    <div class="step-circle">4</div>
-                    <div class="step-label" data-ar="التأكيد" data-en="Confirmation">التأكيد</div>
-                </div>
-            </div>
-        </div>
+       <div class="progress-bar" data-current-step="1">
+           <div class="progress-line"></div>
+           <div class="progress-steps">
+               <div class="progress-step active" data-step="1">
+                   <div class="step-circle">1</div>
+                   <div class="step-label" data-ar="الخدمات" data-en="Services">الخدمات</div>
+               </div>
+               <div class="progress-step" data-step="2">
+                   <div class="step-circle">2</div>
+                   <div class="step-label" data-ar="التاريخ والوقت" data-en="Date & Time">التاريخ والوقت</div>
+               </div>
+               <div class="progress-step" data-step="3">
+                   <div class="step-circle">3</div>
+                   <div class="step-label" data-ar="الحلاق" data-en="Barber">الحلاق</div>
+               </div>
+               <div class="progress-step" data-step="4">
+                   <div class="step-circle">4</div>
+                   <div class="step-label" data-ar="التأكيد" data-en="Confirmation">التأكيد</div>
+               </div>
+           </div>
+       </div>
 
-        <main class="booking-steps">
-            <section id="step-1" class="booking-step active">
-                <h2>اختر الخدمات</h2>
-                <div class="categories-services-grid" role="list"></div>
-            </section>
+       <main class="booking-steps">
+           <section id="step-1" class="booking-step active">
+               <h2>اختر الخدمات</h2>
+               <div class="categories-services-grid" role="list"></div>
+           </section>
 
-            <section id="step-2" class="booking-step">
-                <h2>اختر التاريخ والوقت</h2>
-                <div class="time-slots-grid"></div>
-            </section>
+           <section id="step-2" class="booking-step">
+               <h2>اختر التاريخ والوقت</h2>
+               <div class="date-picker-container">
+                   <input type="date" id="appointment-date" class="date-picker" aria-label="Select appointment date">
+               </div>
+               <div class="time-slots-container">
+                   <h3>الأوقات المتاحة</h3>
+                   <div class="time-period">
+                       <h4>صباحاً</h4>
+                       <div class="time-slots-grid morning-slots"></div>
+                   </div>
+                   <div class="time-period">
+                       <h4>مساءً</h4>
+                       <div class="time-slots-grid afternoon-slots"></div>
+                   </div>
+               </div>
+           </section>
 
-            <section id="step-3" class="booking-step">
-                <h2>اختر الحلاق</h2>
-                <div class="barbers-grid"></div>
-            </section>
+           <section id="step-3" class="booking-step">
+               <h2>اختر الحلاق</h2>
+               <div class="barbers-grid"></div>
+           </section>
 
-            <section id="step-4" class="booking-step">
-                <h2>تأكيد الحجز</h2>
-                <form id="booking-form">
-                    <input type="text" id="customer-name" placeholder="الاسم" required>
-                    <input type="tel" id="customer-phone" placeholder="رقم الهاتف" required>
-                    <button type="submit">تأكيد الحجز</button>
-                </form>
-            </section>
-        </main>
+           <section id="step-4" class="booking-step">
+               <h2>تأكيد الحجز</h2>
+               <form id="booking-form" class="confirmation-form">
+                   <div class="form-group">
+                       <label for="customer-name">الاسم</label>
+                       <input type="text" id="customer-name" required 
+                              minlength="3" 
+                              aria-describedby="name-hint">
+                       <small id="name-hint" class="input-hint">الاسم يجب أن يكون 3 أحرف على الأقل</small>
+                   </div>
+                   
+                   <div class="form-group">
+                       <label for="customer-phone">رقم الهاتف</label>
+                       <input type="tel" id="customer-phone" 
+                              pattern="05[0-9]{8}" 
+                              required 
+                              aria-describedby="phone-hint">
+                       <small id="phone-hint" class="input-hint">يجب أن يبدأ الرقم بـ 05 ويتكون من 10 أرقام</small>
+                   </div>
 
-        <div class="navigation-buttons">
-            <button class="prev-btn" disabled>السابق</button>
-            <button class="next-btn" disabled>التالي</button>
-        </div>
+                   <button type="submit" class="submit-btn">تأكيد الحجز</button>
+               </form>
+           </section>
+       </main>
 
-        <aside class="booking-summary">
-            <h3>ملخص الحجز</h3>
-            <div class="summary-content"></div>
-        </aside>
-    </div>
+       <div class="navigation-buttons">
+           <button class="prev-btn" disabled aria-label="Previous step">السابق</button>
+           <button class="next-btn" disabled aria-label="Next step">التالي</button>
+       </div>
 
-    <div class="toast-container" role="alert" aria-live="polite"></div>
-    <div class="loading-overlay" aria-hidden="true">
-        <div class="loader" role="progressbar"></div>
-        <div class="loading-text">جاري التحميل...</div>
-    </div>
+       <aside class="booking-summary">
+           <button class="toggle-summary" aria-label="Toggle booking summary">
+               <span class="toggle-icon"></span>
+           </button>
+           <div class="summary-header">
+               <h3>ملخص الحجز</h3>
+               <span class="total-price"></span>
+           </div>
+           <div class="summary-content">
+               <div class="selected-services"></div>
+               <div class="selected-datetime"></div>
+               <div class="selected-barber"></div>
+           </div>
+       </aside>
+   </div>
 
-    <!-- Firebase SDK -->
-<script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.2/firebase-app.js';
-    import { getDatabase, ref, get, set, push, query, orderByChild, equalTo, onValue, off } 
-    from 'https://www.gstatic.com/firebasejs/10.7.2/firebase-database.js';
-    
-    window.firebaseModules = {
-        initializeApp,
-        getDatabase,
-        ref,
-        get,
-        set,
-        push,
-        query,
-        orderByChild,
-        equalTo,
-        onValue,
-        off
-    };
-</script>
-    <script src="script.js"></script>
+   <div class="toast-container" role="alert" aria-live="polite"></div>
+   
+   <div class="loading-overlay" aria-hidden="true">
+       <div class="loader" role="progressbar"></div>
+       <div class="loading-text">جاري التحميل...</div>
+   </div>
+
+   <!-- Firebase SDK -->
+   <script type="module">
+       import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.2/firebase-app.js';
+       import { 
+           getDatabase, 
+           ref, 
+           get, 
+           set, 
+           push, 
+           query, 
+           orderByChild, 
+           equalTo, 
+           onValue, 
+           off 
+       } from 'https://www.gstatic.com/firebasejs/10.7.2/firebase-database.js';
+
+       window.firebaseModules = {
+           initializeApp,
+           getDatabase,
+           ref,
+           get,
+           set,
+           push,
+           query,
+           orderByChild,
+           equalTo,
+           onValue,
+           off
+       };
+   </script>
+   <script src="script.js"></script>
 </body>
 </html>
