@@ -1002,6 +1002,17 @@ createServicesHTML(services) {
         })
         .join('');
 }
+
+announceStepChange(element) {
+    const stepTitle = element.querySelector('h2');
+    if (stepTitle) {
+        const announcement = document.createElement('div');
+        announcement.setAttribute('aria-live', 'polite');
+        announcement.textContent = `Step changed to: ${stepTitle.textContent}`;
+        document.body.appendChild(announcement);
+        setTimeout(() => announcement.remove(), 1000);
+    }
+}
 }
 
 // Booking Manager
