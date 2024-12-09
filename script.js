@@ -1139,39 +1139,70 @@ class BookingApplication {
         this.config = CONFIG;
         this.firebase = new FirebaseService();
         this.state = new BookingState();
-        this.ui = new UIManager(this.state, this.firebase);
-        this.bookingManager = new BookingManager(this.state, this.firebase, this.ui);
-        
-        this.setupErrorBoundaries();
-        this.setupPerformanceMonitoring();
+        this.ui = null; // Will be initialized after Firebase
+        this.bookingManager = null; // Will be initialized after UI
+        this.initializationComplete = false;
     }
 
     async initialize() {
         try {
             console.log('Initializing Booking Application...');
             
-            this.ui.showLoading(true);
+            // Show loading state early
+            this.showLoading(true);
 
             // Initialize Firebase first
-            await this.firebase.initializeFirebase();
-            console.log('Firebase initialized successfully');
+            await this.initializeFirebase();
 
-            // Then initialize the rest of the application
-            await Promise.all([
-                this.loadInitialData(),
-                this.setupLocalizations(),
-                this.initializeUI()
-            ]);
+            // Then initialize UI and other components
+            await this.initializeComponents();
 
-            this.setupServiceWorker();
-            this.setupAnalytics();
+            // Load initial data
+            await this.loadInitialData();
+
+            // Setup remaining features
+            this.setupAdditionalFeatures();
             
+            this.initializationComplete = true;
             console.log('Booking Application initialized successfully');
-            this.ui.showLoading(false);
+            this.showLoading(false);
             
         } catch (error) {
             console.error('Failed to initialize Booking Application:', error);
             this.handleInitializationError(error);
+        }
+    }
+
+    showLoading(show) {
+        const loadingOverlay = document.querySelector('.loading-overlay');
+        if (loadingOverlay) {
+            loadingOverlay.classList.toggle('active', show);
+        }
+    }
+
+    async initializeFirebase() {
+        try {
+            await this.firebase.initializeFirebase();
+            console.log('Firebase initialized successfully');
+        } catch (error) {
+            console.error('Firebase initialization failed:', error);
+            throw new Error('Failed to initialize Firebase: ' + error.message);
+        }
+    }
+
+    async initializeComponents() {
+        try {
+            // Initialize UI
+            this.ui = new UIManager(this.state, this.firebase);
+            await this.ui.initializeElements();
+
+            // Initialize Booking Manager
+            this.bookingManager = new BookingManager(this.state, this.firebase, this.ui);
+            
+            console.log('Components initialized successfully');
+        } catch (error) {
+            console.error('Component initialization failed:', error);
+            throw new Error('Failed to initialize components: ' + error.message);
         }
     }
 
@@ -1188,53 +1219,41 @@ class BookingApplication {
             });
 
             this.state.loadPersistedState();
-
+            console.log('Initial data loaded successfully');
         } catch (error) {
             console.error('Error loading initial data:', error);
-            throw error;
+            throw new Error('Failed to load initial data: ' + error.message);
         }
     }
 
-    setupLocalizations() {
-        const language = this.state.getInitialLanguage();
-        document.documentElement.lang = language;
-        document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
-
-        this.setupDateLocalization(language);
+    setupAdditionalFeatures() {
+        this.setupErrorHandling();
+        this.setupEventListeners();
+        this.setupServiceWorker();
+        this.setupAnalytics();
     }
 
-    setupDateLocalization(language) {
-        const dateConfig = {
-            ar: {
-                format: 'DD/MM/YYYY',
-                firstDayOfWeek: 6,
-                months: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 
-                        'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
-                weekdays: ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
-            },
-            en: {
-                format: 'MM/DD/YYYY',
-                firstDayOfWeek: 0,
-                months: ['January', 'February', 'March', 'April', 'May', 'June', 
-                        'July', 'August', 'September', 'October', 'November', 'December'],
-                weekdays: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-            }
+    setupErrorHandling() {
+        window.onerror = (message, source, lineno, colno, error) => {
+            this.handleError('Runtime error', error);
+            return false;
         };
 
-        if (this.bookingManager.flatpickr) {
-            this.bookingManager.flatpickr.set('locale', dateConfig[language]);
-        }
+        window.onunhandledrejection = (event) => {
+            this.handleError('Unhandled promise rejection', event.reason);
+        };
     }
 
-    async initializeUI() {
-        await this.ui.initializeElements();
-        this.setupResponsiveUI();
-        await this.initializeBookingSteps();
-        this.setupKeyboardNavigation();
-        this.initializeSummaryBox();
-    }
+    setupEventListeners() {
+        // Connection status listener
+        document.addEventListener('connection-status', (event) => {
+            const { status, message } = event.detail;
+            if (status === 'disconnected' && this.ui) {
+                this.ui.showToast(message, 'warning');
+            }
+        });
 
-    setupResponsiveUI() {
+        // Responsive layout listeners
         const breakpoints = {
             mobile: window.matchMedia('(max-width: 767px)'),
             tablet: window.matchMedia('(min-width: 768px) and (max-width: 1023px)'),
@@ -1250,162 +1269,8 @@ class BookingApplication {
     handleResponsiveChange(device, matches) {
         if (matches) {
             document.body.dataset.device = device;
-            this.ui.updateLayoutForDevice?.(device);
+            this.ui?.updateLayoutForDevice?.(device);
         }
-    }
-
-    async initializeBookingSteps() {
-        const steps = [
-            'services',
-            'datetime',
-            'barber',
-            'confirmation'
-        ];
-
-        for (const step of steps) {
-            await this.initializeStep(step);
-        }
-    }
-
-    async initializeStep(step) {
-        const stepElement = document.getElementById(`step-${step}`);
-        if (!stepElement) return;
-
-        switch (step) {
-            case 'services':
-                await this.ui.renderServices();
-                break;
-            case 'datetime':
-                this.bookingManager.initializeCalendar();
-                break;
-            case 'barber':
-                await this.ui.renderBarbers();
-                break;
-            case 'confirmation':
-                this.ui.setupConfirmationForm();
-                break;
-        }
-    }
-
-    setupKeyboardNavigation() {
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                this.handleEscapeKey();
-            }
-        });
-
-        this.setupFocusTraps();
-    }
-
-    setupFocusTraps() {
-        const focusableElements = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-        const modals = document.querySelectorAll('.modal');
-
-        modals.forEach(modal => {
-            const focusableContent = modal.querySelectorAll(focusableElements);
-            const firstFocusable = focusableContent[0];
-            const lastFocusable = focusableContent[focusableContent.length - 1];
-
-            modal.addEventListener('keydown', (e) => {
-                if (e.key === 'Tab') {
-                    if (e.shiftKey && document.activeElement === firstFocusable) {
-                        e.preventDefault();
-                        lastFocusable.focus();
-                    } else if (!e.shiftKey && document.activeElement === lastFocusable) {
-                        e.preventDefault();
-                        firstFocusable.focus();
-                    }
-                }
-            });
-        });
-    }
-
-    handleEscapeKey() {
-        const activeModal = document.querySelector('.modal.active');
-        if (activeModal) {
-            this.ui.closeModal(activeModal);
-        }
-    }
-
-    initializeSummaryBox() {
-        const summaryBox = document.querySelector('.booking-summary');
-        if (summaryBox) {
-            this.setupSummaryBoxPosition();
-            this.setupSummaryBoxResizing();
-        }
-    }
-
-    setupSummaryBoxPosition() {
-        const summary = document.querySelector('.booking-summary');
-        if (!summary) return;
-
-        const updatePosition = () => {
-            const rect = document.querySelector('.container').getBoundingClientRect();
-            const right = window.innerWidth - rect.right;
-            summary.style.right = `${right}px`;
-        };
-
-        updatePosition();
-        window.addEventListener('resize', updatePosition);
-    }
-
-    setupSummaryBoxResizing() {
-        const resizer = document.createElement('div');
-        resizer.className = 'summary-resizer';
-        document.querySelector('.booking-summary')?.appendChild(resizer);
-
-        let startX, startWidth;
-
-        const startResize = (e) => {
-            startX = e.clientX;
-            startWidth = parseInt(document.documentElement.style.getPropertyValue('--summary-width'), 10);
-            document.addEventListener('mousemove', resize);
-            document.addEventListener('mouseup', stopResize);
-        };
-
-        const resize = (e) => {
-            const diff = startX - e.clientX;
-            const newWidth = startWidth + diff;
-            document.documentElement.style.setProperty('--summary-width', `${newWidth}px`);
-        };
-
-        const stopResize = () => {
-            document.removeEventListener('mousemove', resize);
-            document.removeEventListener('mouseup', stopResize);
-        };
-
-        resizer.addEventListener('mousedown', startResize);
-    }
-
-    setupErrorBoundaries() {
-        window.onerror = (message, source, lineno, colno, error) => {
-            this.handleGlobalError(error);
-            return false;
-        };
-
-        window.onunhandledrejection = (event) => {
-            this.handleGlobalError(event.reason);
-        };
-    }
-
-    handleGlobalError(error) {
-        console.error('Global error:', error);
-        this.ui.showToast(
-            this.state.language === 'ar' 
-                ? 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى'
-                : 'An unexpected error occurred. Please try again',
-            'error'
-        );
-    }
-
-    handleInitializationError(error) {
-        this.ui.showLoading(false);
-        this.ui.showToast(
-            this.state.language === 'ar'
-                ? 'فشل في تحميل التطبيق. يرجى تحديث الصفحة أو المحاولة لاحقًا'
-                : 'Failed to load the application. Please refresh or try again later',
-            'error'
-        );
     }
 
     setupServiceWorker() {
@@ -1421,16 +1286,18 @@ class BookingApplication {
     }
 
     setupAnalytics() {
-        this.trackUserInteractions();
-        this.trackBookingProgress();
-        this.trackErrors();
+        if (typeof gtag === 'function') {
+            this.trackUserInteractions();
+            this.trackBookingProgress();
+            this.trackErrors();
+        }
     }
 
     trackUserInteractions() {
         document.addEventListener('click', (e) => {
             const target = e.target.closest('button, a, .interactive-element');
             if (target) {
-                this.logAnalyticsEvent('user_interaction', {
+                gtag('event', 'user_interaction', {
                     element: target.tagName,
                     id: target.id,
                     class: target.className
@@ -1441,37 +1308,60 @@ class BookingApplication {
 
     trackBookingProgress() {
         this.state.subscribe(() => {
-            this.logAnalyticsEvent('booking_step_change', {
+            gtag('event', 'booking_step_change', {
                 step: this.state.currentStep,
-                servicesSelected: this.state.selectedServices.size,
-                dateSelected: !!this.state.selectedDate,
-                barberSelected: !!this.state.selectedBarber
+                services_selected: this.state.selectedServices.size,
+                date_selected: !!this.state.selectedDate,
+                barber_selected: !!this.state.selectedBarber
             });
         });
     }
 
     trackErrors() {
         window.addEventListener('error', (e) => {
-            this.logAnalyticsEvent('error', {
-                message: e.message,
-                source: e.filename,
-                lineno: e.lineno,
-                colno: e.colno
+            gtag('event', 'error', {
+                error_type: 'runtime',
+                error_message: e.message,
+                error_location: `${e.filename}:${e.lineno}:${e.colno}`
             });
         });
     }
 
-    logAnalyticsEvent(eventName, eventData) {
-        if (typeof gtag === 'function') {
-            gtag('event', eventName, eventData);
+    handleError(context, error) {
+        console.error(`${context}:`, error);
+        
+        if (this.ui) {
+            const message = this.state.language === 'ar' 
+                ? 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى'
+                : 'An unexpected error occurred. Please try again';
+            
+            this.ui.showToast(message, 'error');
+        }
+    }
+
+    handleInitializationError(error) {
+        this.showLoading(false);
+        
+        const message = this.state.language === 'ar'
+            ? 'فشل في تحميل التطبيق. يرجى تحديث الصفحة أو المحاولة لاحقًا'
+            : 'Failed to load the application. Please refresh or try again later';
+
+        // Show error message
+        if (this.ui) {
+            this.ui.showToast(message, 'error');
+        } else {
+            alert(message);
         }
     }
 
     cleanup() {
-        this.firebase.cleanup();
-        this.ui.cleanup();
-        this.bookingManager.cleanup();
-        window.removeEventListener('resize', this.setupSummaryBoxPosition);
+        this.firebase?.cleanup();
+        this.ui?.cleanup();
+        this.bookingManager?.cleanup();
+        
+        // Remove event listeners
+        window.removeEventListener('error', this.trackErrors);
+        document.removeEventListener('click', this.trackUserInteractions);
     }
 }
 
