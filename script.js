@@ -49,50 +49,47 @@ const formatDuration = (minutes) => {
 
 // Firebase Service
 class FirebaseService {
-constructor() {
-    this.app = null;
-    this.db = null;
-    this.activeSubscriptions = new Map();
-    this.retryAttempts = 3;
-    this.retryDelay = 1000;
-    this.cache = new Map();
-    this.firebase = window.firebaseModules;
-    this.isInitialized = false; // Add this line
-}
-
-async initializeFirebase() {
-    if (this.isInitialized) return;
-
-    try {
-        if (!this.firebase) {
-            throw new Error('Firebase SDK not loaded');
-        }
-        
-        // Check if Firebase is already initialized
-        if (this.firebase.apps?.length > 0) {
-            this.app = this.firebase.apps[0];
-        } else {
-            this.app = this.firebase.initializeApp(CONFIG.firebase);
-        }
-        
-        this.db = this.firebase.getDatabase(this.app);
-        await this.testConnection();
-        this.setupConnectionMonitoring();
-        
-        this.isInitialized = true;
-        console.log('Firebase initialized successfully');
-    } catch (error) {
-        console.error('Firebase initialization failed:', error);
-        throw error;
+    constructor() {
+        this.app = null;
+        this.db = null;
+        this.activeSubscriptions = new Map();
+        this.retryAttempts = 3;
+        this.retryDelay = 1000;
+        this.cache = new Map();
+        this.firebase = window.firebaseModules;
+        this.isInitialized = false;
     }
-}
-    
+
+    async initializeFirebase() {
+        if (this.isInitialized) return;
+
+        try {
+            if (!this.firebase) {
+                throw new Error('Firebase SDK not loaded');
+            }
+
+            // Initialize Firebase app
+            this.app = this.firebase.initializeApp(CONFIG.firebase);
+            this.db = this.firebase.getDatabase(this.app);
+            
+            // Test connection without using .info/connected
+            await this.testConnection();
+            this.setupConnectionMonitoring();
+            
+            this.isInitialized = true;
+            console.log('Firebase initialized successfully');
+        } catch (error) {
+            console.error('Firebase initialization failed:', error);
+            throw error;
+        }
+    }
 
     async testConnection() {
         try {
-            const connectedRef = this.firebase.ref(this.db, '.info/connected');
-            const snapshot = await this.firebase.get(connectedRef);
-            return snapshot.val() === true;
+            // Test connection by reading categories path
+            const testRef = this.firebase.ref(this.db, 'categories');
+            await this.firebase.get(testRef);
+            return true;
         } catch (error) {
             console.error('Connection test failed:', error);
             throw error;
@@ -100,16 +97,21 @@ async initializeFirebase() {
     }
 
     setupConnectionMonitoring() {
-        const connectedRef = this.firebase.ref(this.db, '.info/connected');
-        this.firebase.onValue(connectedRef, (snapshot) => {
-            const isConnected = snapshot.val() === true;
-            document.dispatchEvent(new CustomEvent('connection-status', {
-                detail: { 
-                    status: isConnected ? 'connected' : 'disconnected',
-                    message: isConnected ? 'Connection restored' : 'Connection lost. Retrying...'
-                }
-            }));
-        });
+        try {
+            const connectedRef = this.firebase.ref(this.db, '.info/connected');
+            this.firebase.onValue(connectedRef, (snapshot) => {
+                const isConnected = snapshot.val() === true;
+                document.dispatchEvent(new CustomEvent('connection-status', {
+                    detail: { 
+                        status: isConnected ? 'connected' : 'disconnected',
+                        message: isConnected ? 'Connection restored' : 'Connection lost. Retrying...'
+                    }
+                }));
+            });
+        } catch (error) {
+            console.error('Error setting up connection monitoring:', error);
+            // Don't throw - connection monitoring is non-critical
+        }
     }
 
     async fetchWithCache(path, duration) {
@@ -125,10 +127,12 @@ async initializeFirebase() {
             const snapshot = await this.firebase.get(dbRef);
             const data = snapshot.val();
             
-            this.cache.set(cacheKey, {
-                data,
-                timestamp: Date.now()
-            });
+            if (data) {
+                this.cache.set(cacheKey, {
+                    data,
+                    timestamp: Date.now()
+                });
+            }
             
             return data;
         } catch (error) {
@@ -144,6 +148,8 @@ async initializeFirebase() {
     async getBarbers() {
         try {
             const barbers = await this.fetchWithCache('barbers', CONFIG.cache.duration.barbers);
+            if (!barbers) return {};
+            
             return Object.entries(barbers)
                 .filter(([_, barber]) => barber.active)
                 .reduce((acc, [id, barber]) => ({...acc, [id]: barber}), {});
@@ -154,26 +160,33 @@ async initializeFirebase() {
     }
 
     subscribeToBarberAvailability(barberId, date, callback) {
+        if (!barberId || !date) return;
+
         const dateStr = new Date(date).toISOString().split('T')[0];
         const subscriptionKey = `availability_${barberId}_${dateStr}`;
 
         this.unsubscribe(subscriptionKey);
 
-        const bookingsRef = this.firebase.ref(this.db, 'bookings');
-        const bookingsQuery = this.firebase.query(
-            bookingsRef,
-            this.firebase.orderByChild('barberId'),
-            this.firebase.equalTo(barberId)
-        );
+        try {
+            const bookingsRef = this.firebase.ref(this.db, 'bookings');
+            const bookingsQuery = this.firebase.query(
+                bookingsRef,
+                this.firebase.orderByChild('barberId'),
+                this.firebase.equalTo(barberId)
+            );
 
-        const unsubscribe = this.firebase.onValue(bookingsQuery, snapshot => {
-            const bookings = snapshot.val() || {};
-            const unavailableTimes = this.processBookingsForAvailability(bookings, dateStr);
-            callback(unavailableTimes);
-        });
+            const unsubscribe = this.firebase.onValue(bookingsQuery, snapshot => {
+                const bookings = snapshot.val() || {};
+                const unavailableTimes = this.processBookingsForAvailability(bookings, dateStr);
+                callback(unavailableTimes);
+            });
 
-        this.activeSubscriptions.set(subscriptionKey, unsubscribe);
-        return () => this.unsubscribe(subscriptionKey);
+            this.activeSubscriptions.set(subscriptionKey, unsubscribe);
+            return () => this.unsubscribe(subscriptionKey);
+        } catch (error) {
+            console.error('Error subscribing to barber availability:', error);
+            callback([]);
+        }
     }
 
     processBookingsForAvailability(bookings, dateStr) {
@@ -191,6 +204,10 @@ async initializeFirebase() {
     }
 
     async createBooking(bookingData) {
+        if (!this.isInitialized) {
+            throw new Error('Firebase not initialized');
+        }
+
         try {
             const bookingsRef = this.firebase.ref(this.db, 'bookings');
             const newBookingRef = this.firebase.push(bookingsRef);
@@ -224,6 +241,7 @@ async initializeFirebase() {
         }
         
         this.cache.clear();
+        this.isInitialized = false;
     }
 }
 
