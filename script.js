@@ -49,33 +49,44 @@ const formatDuration = (minutes) => {
 
 // Firebase Service
 class FirebaseService {
-    constructor() {
-        this.app = null;
-        this.db = null;
-        this.activeSubscriptions = new Map();
-        this.retryAttempts = 3;
-        this.retryDelay = 1000;
-        this.cache = new Map();
-        this.firebase = window.firebaseModules;
-    }
+constructor() {
+    this.app = null;
+    this.db = null;
+    this.activeSubscriptions = new Map();
+    this.retryAttempts = 3;
+    this.retryDelay = 1000;
+    this.cache = new Map();
+    this.firebase = window.firebaseModules;
+    this.isInitialized = false; // Add this line
+}
 
-    async initializeFirebase() {
-        try {
-            if (!this.firebase) {
-                throw new Error('Firebase SDK not loaded');
-            }
-            
-            this.app = this.firebase.initializeApp(CONFIG.firebase);
-            this.db = this.firebase.getDatabase(this.app);
+async initializeFirebase() {
+    if (this.isInitialized) return;
 
-            await this.testConnection();
-            this.setupConnectionMonitoring();
-            console.log('Firebase initialized successfully');
-        } catch (error) {
-            console.error('Firebase initialization failed:', error);
-            throw new Error('Failed to initialize Firebase');
+    try {
+        if (!this.firebase) {
+            throw new Error('Firebase SDK not loaded');
         }
+        
+        // Check if Firebase is already initialized
+        if (this.firebase.apps?.length > 0) {
+            this.app = this.firebase.apps[0];
+        } else {
+            this.app = this.firebase.initializeApp(CONFIG.firebase);
+        }
+        
+        this.db = this.firebase.getDatabase(this.app);
+        await this.testConnection();
+        this.setupConnectionMonitoring();
+        
+        this.isInitialized = true;
+        console.log('Firebase initialized successfully');
+    } catch (error) {
+        console.error('Firebase initialization failed:', error);
+        throw error;
     }
+}
+    
 
     async testConnection() {
         try {
@@ -922,6 +933,57 @@ class UIManager {
 
         return translations[key]?.[this.state.language] || key;
     }
+    renderCategories(categories) {
+    if (!this.elements.grids.categories) return;
+    
+    const grid = this.elements.grids.categories;
+    grid.innerHTML = '';
+    
+    Object.entries(categories).forEach(([categoryId, category]) => {
+        const categoryElement = this.createCategoryElement(categoryId, category);
+        grid.appendChild(categoryElement);
+    });
+}
+
+createCategoryElement(categoryId, category) {
+    const div = document.createElement('div');
+    div.className = 'category';
+    div.dataset.categoryId = categoryId;
+    
+    const name = this.state.language === 'ar' ? category.ar : category.en;
+    
+    div.innerHTML = `
+        <div class="category-header">
+            <h3>${name}</h3>
+            <button class="category-toggle" aria-label="Toggle category">+</button>
+        </div>
+        <div class="category-services" aria-expanded="false">
+            ${this.createServicesHTML(category.services)}
+        </div>
+    `;
+    
+    return div;
+}
+
+createServicesHTML(services) {
+    return Object.entries(services)
+        .map(([serviceId, service]) => {
+            const name = this.state.language === 'ar' ? service.name_ar : service.name_en;
+            const price = formatCurrency(service.price);
+            const duration = formatDuration(service.duration);
+            
+            return `
+                <div class="service-card" data-service-id="${serviceId}">
+                    <div class="service-info">
+                        <h4>${name}</h4>
+                        <p>${price} - ${duration}</p>
+                    </div>
+                    <div class="service-selected-icon">✓</div>
+                </div>
+            `;
+        })
+        .join('');
+}
 }
 
 // Booking Manager
