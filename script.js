@@ -84,17 +84,17 @@ class FirebaseService {
         }
     }
 
-async testConnection() {
-    try {
-        // Test connection by reading categories path
-        const testRef = this.firebase.ref(this.db, 'categories');
-        const snapshot = await this.firebase.get(testRef);
-        return true;
-    } catch (error) {
-        console.error('Connection test failed:', error);
-        throw error;
+    async testConnection() {
+        try {
+            // Test connection by reading categories path
+            const testRef = this.firebase.ref(this.db, 'categories');
+            const snapshot = await this.firebase.get(testRef);
+            return true;
+        } catch (error) {
+            console.error('Connection test failed:', error);
+            throw error;
+        }
     }
-}
 
     setupConnectionMonitoring() {
         try {
@@ -1342,3 +1342,10 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Failed to initialize application:', error);
     });
 });
+document.addEventListener('DOMContentLoaded', () => {
+    const app = new BookingApplication();
+    app.initialize().catch(error => {
+        console.error('Failed to initialize application:', error);
+    });
+});
+
