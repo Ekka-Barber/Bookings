@@ -193,23 +193,6 @@ button:hover {
     display: none;
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .progress-steps {
-        flex-direction: column;
-    }
-    
-    .progress-step {
-        flex-direction: row;
-        margin-bottom: var(--spacing-sm);
-    }
-    
-    .step-circle {
-        margin-right: var(--spacing-sm);
-        margin-bottom: 0;
-    }
-}
-
 /* Toast styles */
 .toast-container {
     position: fixed;
@@ -313,6 +296,154 @@ button:hover {
     color: var(--background-color);
 }
 
+/* Date Picker styles */
+.date-picker-container {
+    margin-bottom: var(--spacing-lg);
+}
+
+.date-picker {
+    width: 100%;
+    max-width: 300px;
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-family: var(--font-family);
+    font-size: var(--font-size-base);
+}
+
+/* Time slots styles */
+.time-period {
+    margin-bottom: var(--spacing-xl);
+}
+
+.time-period h4 {
+    color: var(--text-light);
+    margin-bottom: var(--spacing-md);
+}
+
+.time-slots-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+}
+
+.time-slot {
+    text-align: center;
+    cursor: pointer;
+}
+
+.time-slot:not(.unavailable):hover {
+    background-color: var(--primary-color);
+    color: var(--background-color);
+}
+
+.time-slot.selected {
+    background-color: var(--primary-color);
+    color: var(--background-color);
+    border-color: var(--primary-color);
+}
+
+.time-slot.unavailable {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: var(--border-color);
+}
+
+/* Form styles enhancement */
+.confirmation-form {
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.form-group {
+    margin-bottom: var(--spacing-lg);
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    color: var(--text-light);
+}
+
+.input-hint {
+    display: block;
+    font-size: var(--font-size-sm);
+    color: var(--text-light);
+    margin-top: var(--spacing-xs);
+}
+
+.submit-btn {
+    margin-top: var(--spacing-lg);
+}
+
+/* Booking summary styles */
+.booking-summary {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    width: 100%;
+    max-width: 400px;
+    background: var(--background-color);
+    box-shadow: var(--shadow-lg);
+    border-top-left-radius: var(--radius-lg);
+    transform: translateY(calc(100% - 50px));
+    transition: transform var(--transition-normal);
+    z-index: 100;
+}
+
+.booking-summary.expanded {
+    transform: translateY(0);
+}
+
+.toggle-summary {
+    position: absolute;
+    top: -40px;
+    left: 20px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    border: none;
+    cursor: pointer;
+}
+
+.summary-header {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.summary-content {
+    padding: var(--spacing-md);
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.selected-services,
+.selected-datetime,
+.selected-barber {
+    margin-bottom: var(--spacing-md);
+}
+
+/* Navigation buttons enhancement */
+.navigation-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: var(--spacing-xl);
+    padding: var(--spacing-md);
+}
+
+.prev-btn,
+.next-btn {
+    min-width: 120px;
+}
+
+.prev-btn:disabled,
+.next-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* RTL support */
 [dir="rtl"] .toast-container {
     right: auto;
@@ -322,4 +453,44 @@ button:hover {
 [dir="rtl"] .progress-line::before {
     right: 0;
     left: auto;
+}
+
+[dir="rtl"] .booking-summary {
+    right: auto;
+    left: 0;
+    border-top-left-radius: 0;
+    border-top-right-radius: var(--radius-lg);
+}
+
+[dir="rtl"] .toggle-summary {
+    left: auto;
+    right: 20px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .progress-steps {
+        flex-direction: column;
+    }
+    
+    .progress-step {
+        flex-direction: row;
+        margin-bottom: var(--spacing-sm);
+    }
+    
+    .step-circle {
+        margin-right: var(--spacing-sm);
+        margin-bottom: 0;
+    }
+
+    .navigation-buttons {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--background-color);
+        box-shadow: var(--shadow-lg);
+        margin: 0;
+        z-index: 90;
+    }
 }
