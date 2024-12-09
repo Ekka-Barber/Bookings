@@ -59,11 +59,12 @@ class FirebaseService {
 
     async initializeFirebase() {
         try {
-            const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.2/firebase-app.js');
-            const { getDatabase } = await import('https://www.gstatic.com/firebasejs/10.7.2/firebase-database.js');
-
-            const app = initializeApp(CONFIG.firebase);
-            this.db = getDatabase(app);
+            if (!window.firebase) {
+                throw new Error('Firebase SDK not loaded');
+            }
+            
+            const app = window.firebase.initializeApp(CONFIG.firebase);
+            this.db = window.firebase.getDatabase(app);
 
             await this.testConnection();
             this.setupConnectionMonitoring();
@@ -532,6 +533,15 @@ class UIManager {
             loadingOverlay: document.querySelector('.loading-overlay'),
             toastContainer: this.createToastContainer()
         };
+    }
+
+    createToastContainer() {
+        const container = document.createElement('div');
+        container.className = 'toast-container';
+        container.setAttribute('role', 'alert');
+        container.setAttribute('aria-live', 'polite');
+        document.body.appendChild(container);
+        return container;
     }
 
     setupStateObserver() {
@@ -1387,7 +1397,7 @@ class BookingApplication {
         console.error('Global error:', error);
         this.ui.showToast(
             this.state.language === 'ar' 
-                ? 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى' 
+                ? 'حدث خطأ غير متوقع.حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى' 
                 : 'An unexpected error occurred. Please try again',
             'error'
         );
@@ -1396,8 +1406,7 @@ class BookingApplication {
     handleInitializationError(error) {
         this.ui.showLoading(false);
         this.ui.showToast(
-            this.state.language ===
-            'ar' 
+            this.state.language === 'ar' 
                 ? 'فشل في تحميل التطبيق. يرجى تحديث الصفحة أو المحاولة لاحقًا' 
                 : 'Failed to load the application. Please refresh or try again later',
             'error'
